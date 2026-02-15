@@ -1,0 +1,34 @@
+version: 1
+app_name: "app"
+platforms:
+  - "mobile"
+state_management: "riverpod"
+ci_provider: "none"
+analytics_provider: "none"
+features:
+  analytics: false
+  api: true
+  env: false
+  hive: true
+  localization: false
+  maps: false
+  media: false
+  pagination: false
+  push_notifications: false
+  social_auth: false
+  tests: false
+  theme: true
+  theme_mode: false
+  websocket: false
+api_config:
+  success_key: "response_code"
+  success_value: "200"
+  data_key: "obj"
+  nested_data_path: null
+  error_message_path: "obj"
+  error_code_path: "response_code"
+  token_source: "header"
+  access_token_path: "token"
+  refresh_token_path: null
+  auth_header_name: "token"
+  auth_header_prefix: ""
