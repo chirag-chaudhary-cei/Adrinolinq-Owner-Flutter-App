@@ -336,7 +336,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
               pinned: false,
               floating: true,
               delegate: _SearchBarDelegate(
-                minHeight: 0,
+                minHeight: AppResponsive.s(context, 70),
                 maxHeight: AppResponsive.s(context, 70),
                 child: Container(
                   color: Colors.white,
@@ -393,6 +393,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
                             padding:
                                 AppResponsive.padding(context, vertical: 60),
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   Icons.sports_tennis,
@@ -570,6 +571,8 @@ class _SearchBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
+    final currentHeight = (maxExtent - shrinkOffset).clamp(0.0, maxExtent);
+    if (currentHeight < 1) return const SizedBox.shrink();
     return SizedBox.expand(child: child);
   }
 

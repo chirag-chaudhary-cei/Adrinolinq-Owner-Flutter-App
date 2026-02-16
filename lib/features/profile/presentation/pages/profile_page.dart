@@ -180,6 +180,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
       child: Padding(
         padding: AppResponsive.padding(context, horizontal: 24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(

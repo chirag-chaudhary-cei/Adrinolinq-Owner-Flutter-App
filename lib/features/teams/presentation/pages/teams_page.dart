@@ -6,6 +6,7 @@ import '../../../../core/theme/app_responsive.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_search_bar.dart';
+import '../../../../core/widgets/global_app_bar.dart' hide AppSearchBar;
 import '../../data/models/manager_team_model.dart';
 import '../providers/teams_providers.dart';
 import '../widgets/team_card.dart';
@@ -33,51 +34,18 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with Add Team button
-            Padding(
-              padding:
-                  AppResponsive.padding(context, horizontal: 20, vertical: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'My Teams',
-                          style: TextStyle(
-                            fontSize: AppResponsive.font(context, 24),
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimaryLight,
-                          ),
-                        ),
-                        SizedBox(height: AppResponsive.s(context, 4)),
-                        Text(
-                          'Manage your teams',
-                          style: TextStyle(
-                            fontSize: AppResponsive.font(context, 14),
-                            color: AppColors.textSecondaryLight,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Add Team Button
-                  SizedBox(
-                    height: AppResponsive.s(context, 40),
-                    child: AppButton(
-                      text: '+ Add Team',
-                      onPressed: () => _navigateToCreateTeam(),
-                      fontSize: AppResponsive.font(context, 14),
-                      horizontalPadding: 16,
-                    ),
-                  ),
-                ],
-              ),
+            GlobalAppBar(
+              title: 'My Teams',
+              subtitle: 'Manage your teams',
+              showAddButton: true,
+              addButtonText: 'Add',
+              addButtonIcon: Icons.add,
+              onAddPressed: _navigateToCreateTeam,
             ),
 
             // Search Bar
             Padding(
-              padding: AppResponsive.padding(context, horizontal: 20),
+              padding: AppResponsive.padding(context, horizontal: 20, top: 16),
               child: AppSearchBar(
                 hintText: 'Search Teams',
                 onChanged: (value) {
@@ -115,6 +83,7 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
                           height: MediaQuery.of(context).size.height * 0.6,
                           child: Center(
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -194,6 +163,7 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
                       height: MediaQuery.of(context).size.height * 0.6,
                       child: Center(
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(

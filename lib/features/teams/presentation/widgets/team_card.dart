@@ -2,15 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/config/app_config.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
 import '../../data/models/manager_team_model.dart';
+import '../providers/teams_providers.dart';
 
 /// Team card widget with glassmorphism effect
-class TeamCard extends StatelessWidget {
+class TeamCard extends ConsumerWidget {
   const TeamCard({
     super.key,
     required this.team,
@@ -23,11 +23,9 @@ class TeamCard extends StatelessWidget {
   final VoidCallback? onLongPress;
 
   @override
-  Widget build(BuildContext context) {
-    final config = AppConfig.load();
-    final imageUrl = team.imageFile != null && team.imageFile!.isNotEmpty
-        ? '${config.apiBaseUrl}${ApiEndpoints.sportsUploads}${team.imageFile}'
-        : null;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.read(teamsRepositoryProvider);
+    final imageUrl = repository.getTeamImageUrl(team.imageFile);
 
     return GestureDetector(
       onTap: onTap,
@@ -85,7 +83,7 @@ class TeamCard extends StatelessWidget {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: imageUrl != null
+                      child: imageUrl.isNotEmpty
                           ? CachedNetworkImage(
                               imageUrl: imageUrl,
                               fit: BoxFit.cover,
@@ -128,6 +126,7 @@ class TeamCard extends StatelessWidget {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Team Name
                         Text(
@@ -185,9 +184,9 @@ class TeamCard extends StatelessWidget {
 
                   // Arrow Icon
                   Icon(
-                    Icons.chevron_right,
+                    Icons.mode_edit_outlined,
                     color: AppColors.textMutedLight,
-                    size: AppResponsive.s(context, 24),
+                    size: AppResponsive.s(context, 20),
                   ),
                 ],
               ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../datasources/teams_remote_data_source.dart';
 import '../models/manager_team_model.dart';
 import '../models/save_team_request.dart';
@@ -25,5 +27,15 @@ class TeamsRepository {
     } catch (e) {
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  /// Upload team image
+  Future<String> uploadTeamImage(File imageFile) async {
+    return await _remoteDataSource.uploadTeamImage(imageFile);
+  }
+
+  /// Get team image URL
+  String getTeamImageUrl(String? imageFile) {
+    return _remoteDataSource.getTeamImageUrl(imageFile);
   }
 }

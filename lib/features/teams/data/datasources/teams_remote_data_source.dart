@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:adrinolinq_owner/core/network/connectivity_service.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/api/api_client.dart';
 import '../../../../core/cache/hive_cache_manager.dart';
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/utils/logger.dart';
 import '../models/manager_team_model.dart';
 import '../models/save_team_request.dart';
 
@@ -152,6 +156,10 @@ class TeamsRemoteDataSource {
         // Update operation, return existing ID
         print('✅ [TeamsDS] Team updated: ${request.id}');
         return request.id!;
+      } else if (obj is String && obj.contains('Successfully')) {
+        // API returns success message instead of ID for CREATE operations
+        print('✅ [TeamsDS] Team created successfully: $obj');
+        return 0; // Return 0 as sentinel value since ID isn't provided
       }
 
       throw Exception('Failed to get team ID from response');
@@ -168,6 +176,72 @@ class TeamsRemoteDataSource {
       print('❌ [TeamsDS] Error saving team: $e');
       rethrow;
     }
+  }
+
+  /// Upload team image
+  Future<String> uploadTeamImage(File imageFile) async {
+    try {
+      final fileName = imageFile.path.split('/').last.split('\\').last;
+
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: fileName,
+        ),
+      });
+
+      AppLogger.info('Uploading team image: $fileName', 'TeamsDataSource');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.UploadTeamsFile,
+        data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: Failed to upload image');
+      }
+
+      if (response.data is Map<String, dynamic>) {
+        final responseCode = response.data['response_code'] as String?;
+        if (responseCode == '200' || responseCode == '201') {
+          final obj = response.data['obj'] as String?;
+          if (obj != null && obj.isNotEmpty) {
+            final lastSlashIndex = obj.lastIndexOf('/');
+            final extractedFileName =
+                lastSlashIndex >= 0 ? obj.substring(lastSlashIndex + 1) : obj;
+
+            if (kDebugMode) {
+              print('✅ [TeamsDS] Team image uploaded: $extractedFileName');
+            }
+
+            AppLogger.success(
+              'Team image uploaded: $extractedFileName',
+              'TeamsDataSource',
+            );
+            return extractedFileName;
+          }
+        }
+        throw Exception(response.data['message'] ?? 'Failed to upload image');
+      }
+
+      throw Exception('Invalid response format');
+    } catch (e) {
+      if (e is DioException) {
+        throw Exception('Network error: ${e.message}');
+      }
+      rethrow;
+    }
+  }
+
+  /// Get team image URL
+  String getTeamImageUrl(String? imageFile) {
+    if (imageFile == null || imageFile.isEmpty) {
+      return '';
+    }
+    return '${_apiClient.baseUrl}${ApiEndpoints.teamUploads}$imageFile';
   }
 
   /// Validate API response

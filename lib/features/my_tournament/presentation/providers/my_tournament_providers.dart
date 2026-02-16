@@ -4,7 +4,6 @@ import '../../data/datasources/my_tournament_remote_data_source.dart';
 import '../../data/repositories/my_tournament_repository.dart';
 import '../../data/models/tournament_registration_model.dart';
 import '../../data/models/tournament_team_player_model.dart';
-import '../../../../core/storage/local_storage.dart';
 
 /// My Tournament remote data source provider
 final myTournamentRemoteDataSourceProvider =
@@ -20,20 +19,11 @@ final myTournamentRepositoryProvider = Provider<MyTournamentRepository>((ref) {
 });
 
 /// Tournament registrations provider - fetches user's registered tournaments
+/// API uses token to identify user (no need to pass user_id)
 final myTournamentRegistrationsProvider =
     FutureProvider<List<TournamentRegistrationModel>>((ref) async {
   final repository = ref.watch(myTournamentRepositoryProvider);
-
-  // Get user ID from local storage
-  final String? userId = LocalStorage.instance.getString('user_id');
-
-  if (userId == null || userId.isEmpty) {
-    throw Exception('User ID not found. Please login again.');
-  }
-
-  final playerUserId = int.parse(userId);
-
-  return repository.getTournamentRegistrations(playerUserId);
+  return repository.getTournamentRegistrations();
 });
 
 /// Tournament team players provider - fetches team players for a specific team

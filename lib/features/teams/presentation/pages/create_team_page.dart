@@ -6,8 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../../../core/config/app_config.dart';
-import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
 import '../../../../core/utils/image_crop_config.dart';
@@ -15,8 +13,9 @@ import '../../../../core/utils/image_picker_helper.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/app_text_field_with_label.dart';
+import '../../../../core/widgets/global_app_bar.dart';
+import '../../../../core/widgets/app_loading.dart';
 import '../../../auth/presentation/providers/onboarding_providers.dart';
-import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../data/models/manager_team_model.dart';
 import '../../data/models/save_team_request.dart';
 import '../providers/teams_providers.dart';
@@ -67,168 +66,103 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: AppColors.textPrimaryLight,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          _isEditMode ? 'Edit Team' : 'Create Team',
-          style: TextStyle(
-            color: AppColors.textPrimaryLight,
-            fontSize: AppResponsive.font(context, 18),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: Form(
-        key: _formKey,
+      body: SafeArea(
         child: Column(
           children: [
+            GlobalAppBar(
+              title: _isEditMode ? 'Edit Team' : 'Create Team',
+              showBackButton: true,
+            ),
             Expanded(
               child: SingleChildScrollView(
                 padding: AppResponsive.padding(context, all: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Image Upload Section
-                    Center(
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: _isUploadingImage ? null : _pickImage,
-                            child: Container(
-                              width: AppResponsive.s(context, 120),
-                              height: AppResponsive.s(context, 120),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceLight,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppColors.cardBorderLight,
-                                  width: 2,
-                                ),
-                              ),
-                              child: _buildImagePreview(),
-                            ),
-                          ),
-                          SizedBox(height: AppResponsive.s(context, 12)),
-                          TextButton.icon(
-                            onPressed: _isUploadingImage ? null : _pickImage,
-                            icon: _isUploadingImage
-                                ? SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        AppColors.accentBlue,
-                                      ),
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.upload,
-                                    color: AppColors.accentBlue,
-                                  ),
-                            label: Text(
-                              _isUploadingImage
-                                  ? 'Uploading...'
-                                  : 'Upload Team Logo',
-                              style: TextStyle(
-                                color: AppColors.accentBlue,
-                                fontSize: AppResponsive.font(context, 14),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Image Upload Section - Onboarding Style
+                      _buildImageUploadSection(),
+                      SizedBox(height: AppResponsive.s(context, 24)),
+
+                      // Team Name
+                      AppTextFieldWithLabel(
+                        label: 'Team Name',
+                        hintText: 'Enter team name',
+                        controller: _nameController,
+                        isRequired: true,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Team name is required';
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                    SizedBox(height: AppResponsive.s(context, 24)),
+                      SizedBox(height: AppResponsive.s(context, 16)),
 
-                    // Team Name
-                    AppTextFieldWithLabel(
-                      label: 'Team Name',
-                      hintText: 'Enter team name',
-                      controller: _nameController,
-                      isRequired: true,
-                      maxLength: 50,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Team name is required';
-                        }
-                        return null;
-                      },
-                    ),
-                    SizedBox(height: AppResponsive.s(context, 16)),
+                      // Sport Dropdown
+                      sportsAsync.when(
+                        data: (sports) {
+                          // Pre-select sport in edit mode
+                          if (_isEditMode &&
+                              _selectedSport == null &&
+                              widget.team!.sportId > 0) {
+                            try {
+                              _selectedSport = sports.firstWhere(
+                                (s) => s.sportsId == widget.team!.sportId,
+                              );
+                            } catch (_) {}
+                          }
 
-                    // Sport Dropdown
-                    sportsAsync.when(
-                      data: (sports) {
-                        // Pre-select sport in edit mode
-                        if (_isEditMode &&
-                            _selectedSport == null &&
-                            widget.team!.sportId > 0) {
-                          try {
-                            _selectedSport = sports.firstWhere(
-                              (s) => s.sportsId == widget.team!.sportId,
-                            );
-                          } catch (_) {}
-                        }
-
-                        return AppDropdownFormField<dynamic>(
+                          return AppDropdownFormField<dynamic>(
+                            label: 'Sport',
+                            items: sports,
+                            itemLabel: (sport) => sport.sportsName,
+                            value: _selectedSport,
+                            hint: 'Select sport',
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedSport = value;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null) {
+                                return 'Please select a sport';
+                              }
+                              return null;
+                            },
+                          );
+                        },
+                        loading: () => AppDropdownFormField<dynamic>(
                           label: 'Sport',
-                          items: sports,
-                          itemLabel: (sport) => sport.sportsName,
-                          value: _selectedSport,
-                          hint: 'Select sport',
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedSport = value;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null) {
-                              return 'Please select a sport';
-                            }
-                            return null;
-                          },
-                        );
-                      },
-                      loading: () => AppDropdownFormField<dynamic>(
-                        label: 'Sport',
-                        items: const [],
-                        itemLabel: (item) => '',
-                        value: null,
-                        hint: 'Loading sports...',
-                        onChanged: null,
-                        isLoading: true,
+                          items: const [],
+                          itemLabel: (item) => '',
+                          value: null,
+                          hint: 'Loading sports...',
+                          onChanged: null,
+                          isLoading: true,
+                        ),
+                        error: (error, stack) => AppDropdownFormField<dynamic>(
+                          label: 'Sport',
+                          items: const [],
+                          itemLabel: (item) => '',
+                          value: null,
+                          hint: 'Failed to load sports',
+                          onChanged: null,
+                        ),
                       ),
-                      error: (error, stack) => AppDropdownFormField<dynamic>(
-                        label: 'Sport',
-                        items: const [],
-                        itemLabel: (item) => '',
-                        value: null,
-                        hint: 'Failed to load sports',
-                        onChanged: null,
-                      ),
-                    ),
-                    SizedBox(height: AppResponsive.s(context, 16)),
+                      SizedBox(height: AppResponsive.s(context, 16)),
 
-                    // Description
-                    AppTextFieldWithLabel(
-                      label: 'Description',
-                      hintText: 'Enter team description (optional)',
-                      controller: _descriptionController,
-                      maxLines: 4,
-                      maxLength: 200,
-                      isRequired: false,
-                    ),
-                  ],
+                      // Description
+                      AppTextFieldWithLabel(
+                        label: 'Description',
+                        hintText: 'Enter team description (optional)',
+                        controller: _descriptionController,
+                        maxLines: 4,
+                        isRequired: false,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -236,16 +170,7 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
             // Save Button
             Container(
               padding: AppResponsive.padding(context, all: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
+              color: Colors.transparent,
               child: SafeArea(
                 top: false,
                 child: AppButton(
@@ -261,58 +186,225 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
     );
   }
 
-  Widget _buildImagePreview() {
-    if (_isUploadingImage) {
-      return Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentBlue),
-        ),
-      );
-    }
+  Widget _buildImageUploadSection() {
+    final hasUploadedImage =
+        _uploadedImageFileName != null && _uploadedImageFileName!.isNotEmpty;
 
-    if (_profileImage != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Image.file(
-          _profileImage!,
-          fit: BoxFit.cover,
+    return Container(
+      width: double.infinity,
+      padding: _profileImage == null && !hasUploadedImage
+          ? AppResponsive.padding(context, all: 20)
+          : null,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppResponsive.borderRadius(context, 12),
+        border: Border.all(
+          color: Colors.black,
+          width: AppResponsive.thickness(context, 1.5),
         ),
-      );
-    }
-
-    if (_uploadedImageFileName != null && _uploadedImageFileName!.isNotEmpty) {
-      final config = AppConfig.load();
-      final imageUrl =
-          '${config.apiBaseUrl}${ApiEndpoints.sportsUploads}$_uploadedImageFileName';
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: CachedNetworkImage(
-          imageUrl: imageUrl,
-          fit: BoxFit.cover,
-          placeholder: (context, url) => Center(
-            child: Icon(
-              Icons.shield_outlined,
-              size: AppResponsive.s(context, 48),
-              color: AppColors.textMutedLight,
-            ),
-          ),
-          errorWidget: (context, url, error) => Center(
-            child: Icon(
-              Icons.shield_outlined,
-              size: AppResponsive.s(context, 48),
-              color: AppColors.textMutedLight,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Center(
-      child: Icon(
-        Icons.shield_outlined,
-        size: AppResponsive.s(context, 48),
-        color: AppColors.textMutedLight,
       ),
+      child: _profileImage != null
+          ? Stack(
+              children: [
+                GestureDetector(
+                  onTap: _isUploadingImage ? null : _pickImage,
+                  child: ClipRRect(
+                    borderRadius: AppResponsive.borderRadius(context, 12),
+                    child: Image.file(
+                      _profileImage!,
+                      width: double.infinity,
+                      height: AppResponsive.s(context, 200),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _profileImage = null;
+                        _uploadedImageFileName = null;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.45),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                if (_isUploadingImage)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: AppResponsive.borderRadius(context, 12),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AppLoading.circular(color: Colors.white),
+                            SizedBox(height: AppResponsive.s(context, 12)),
+                            Text(
+                              'Uploading...',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: AppResponsive.font(context, 14),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : hasUploadedImage
+              ? Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: _isUploadingImage ? null : _pickImage,
+                      child: ClipRRect(
+                        borderRadius: AppResponsive.borderRadius(context, 12),
+                        child: Builder(
+                          builder: (context) {
+                            final repository =
+                                ref.read(teamsRepositoryProvider);
+                            final imageUrl = repository
+                                .getTeamImageUrl(_uploadedImageFileName);
+                            return CachedNetworkImage(
+                              imageUrl: imageUrl,
+                              width: double.infinity,
+                              height: AppResponsive.s(context, 200),
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                color: Colors.grey[200],
+                                child: Center(
+                                  child: AppLoading.circular(),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) {
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.error,
+                                    color: Colors.red,
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _uploadedImageFileName = null;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Center(
+                      child: Container(
+                        width: AppResponsive.s(context, 64),
+                        height: AppResponsive.s(context, 64),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF5F5F5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.shield_outlined,
+                            size: AppResponsive.icon(context, 36),
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: AppResponsive.s(context, 10)),
+                    Text(
+                      'Upload Team Logo',
+                      style: TextStyle(
+                        fontSize: AppResponsive.font(context, 16),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: AppResponsive.s(context, 10)),
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: AppResponsive.s(context, 16),
+                          ),
+                          child: Text(
+                            'OR',
+                            style: TextStyle(
+                              fontFamily: 'SFProRounded',
+                              fontSize: AppResponsive.font(context, 14),
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                      ],
+                    ),
+                    SizedBox(height: AppResponsive.s(context, 16)),
+                    GestureDetector(
+                      onTap: _isUploadingImage ? null : _pickImage,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                          vertical: AppResponsive.s(context, 5),
+                          horizontal: AppResponsive.s(context, 12),
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black, width: 2),
+                          borderRadius: AppResponsive.borderRadius(context, 8),
+                        ),
+                        child: Text(
+                          'Browse Photo',
+                          style: TextStyle(
+                            fontSize: AppResponsive.font(context, 12),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
     );
   }
 
@@ -323,9 +415,9 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
         source: ImageSource.gallery,
         aspectRatioPreset: ImageAspectRatioPreset.square,
         cropShape: ImageCropShape.rectangle,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 90,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 95,
       );
 
       if (croppedImage != null) {
@@ -336,8 +428,8 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
 
         // Upload the image immediately
         try {
-          final repository = ref.read(profileRepositoryProvider);
-          final uploadedFileName = await repository.uploadUserImage(
+          final repository = ref.read(teamsRepositoryProvider);
+          final uploadedFileName = await repository.uploadTeamImage(
             croppedImage,
           );
 
@@ -346,7 +438,7 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
               _uploadedImageFileName = uploadedFileName;
               _isUploadingImage = false;
             });
-            print('✅ [CreateTeam] Image uploaded: $uploadedFileName');
+            print('✅ [CreateTeam] Team image uploaded: $uploadedFileName');
           }
         } catch (e) {
           if (mounted) {

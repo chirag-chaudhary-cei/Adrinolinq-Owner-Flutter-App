@@ -140,6 +140,7 @@ class _MatchesPageState extends ConsumerState<MatchesPage> {
                           height: MediaQuery.of(context).size.height * 0.6,
                           child: Center(
                             child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -238,6 +239,7 @@ class _MatchesPageState extends ConsumerState<MatchesPage> {
                       height: MediaQuery.of(context).size.height * 0.6,
                       child: Center(
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(

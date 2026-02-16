@@ -140,7 +140,8 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
 
   void _showOverlay() {
     final overlay = Overlay.of(context);
-    final RenderBox box = context.findRenderObject() as RenderBox;
+    final RenderBox? box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
     final size = box.size;
     final offset = box.localToGlobal(Offset.zero);
 

@@ -325,7 +325,8 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                               ElevatedButton.icon(
                                 onPressed: () {
                                   ref.invalidate(
-                                      myTournamentRegistrationsProvider,);
+                                    myTournamentRegistrationsProvider,
+                                  );
                                 },
                                 icon: const Icon(Icons.refresh),
                                 label: const Text('Retry'),
@@ -429,12 +430,8 @@ class _TournamentCard extends ConsumerWidget {
   }
 
   Widget _buildLoadingCard(BuildContext context, WidgetRef ref) {
-    return Container(
-      height: AppResponsive.s(context, 350),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: AppResponsive.borderRadius(context, 33),
-      ),
+    return SizedBox(
+      height: AppResponsive.s(context, 200),
       child: Center(
         child: AppLoading.circular(color: AppColors.accentBlue),
       ),

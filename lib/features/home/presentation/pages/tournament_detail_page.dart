@@ -120,7 +120,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
       if (!mounted) return;
       final RenderBox? renderBox =
           _sponsorsKey.currentContext?.findRenderObject() as RenderBox?;
-      if (renderBox != null) {
+      if (renderBox != null && renderBox.hasSize) {
         final newHeight = renderBox.size.height;
         if ((newHeight - _sponsorsHeight).abs() > 0.1 && newHeight > 0) {
           setState(() {

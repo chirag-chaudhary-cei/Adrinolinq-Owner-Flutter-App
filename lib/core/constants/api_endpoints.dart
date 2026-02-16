@@ -61,11 +61,13 @@ class ApiEndpoints {
 
   // File Upload
   static const String uploadUserFile = '/api/FileUpload/UploadUserFile';
+  static const String UploadTeamsFile = '/api/FileUpload/UploadTeamsFile';
 
   // Uploads (File Download - base paths, append filename)
   static const String tournamentsUploads = '/Uploads/Tournaments/';
   static const String usersUploads = '/Uploads/Users/';
   static const String sportsUploads = '/Uploads/Sports/';
+  static const String teamUploads = '/Uploads/Teams/';
 
   // Tournament Teams
   static const String getTournamentTeamsList =

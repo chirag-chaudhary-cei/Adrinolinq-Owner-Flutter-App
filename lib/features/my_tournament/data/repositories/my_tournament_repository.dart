@@ -8,9 +8,8 @@ class MyTournamentRepository {
 
   final MyTournamentRemoteDataSource remoteDataSource;
 
-  Future<List<TournamentRegistrationModel>> getTournamentRegistrations(
-      int playerUserId,) async {
-    return remoteDataSource.getTournamentRegistrations(playerUserId);
+  Future<List<TournamentRegistrationModel>> getTournamentRegistrations() async {
+    return remoteDataSource.getTournamentRegistrations();
   }
 
   List<TournamentRegistrationModel>? getCachedRegistrations() {
@@ -18,7 +17,8 @@ class MyTournamentRepository {
   }
 
   Future<List<TournamentTeamPlayerModel>> getTournamentTeamPlayers(
-      int teamId,) async {
+    int teamId,
+  ) async {
     return remoteDataSource.getTournamentTeamPlayers(teamId);
   }
 
@@ -39,7 +39,8 @@ class MyTournamentRepository {
   }
 
   Future<List<Map<String, dynamic>>> getEnrolledPlayers(
-      int tournamentId,) async {
+    int tournamentId,
+  ) async {
     return remoteDataSource.getEnrolledPlayers(tournamentId);
   }
 }

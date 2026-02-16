@@ -60,24 +60,24 @@ class MyTournamentRemoteDataSource {
         print('📦 [MyTournamentDS] Cache hit: ${cached.length} registrations');
       }
       return cached
-          .map((e) =>
-              TournamentRegistrationModel.fromJson(e as Map<String, dynamic>),)
+          .map(
+            (e) =>
+                TournamentRegistrationModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
     }
     return null;
   }
 
-  Future<List<TournamentRegistrationModel>> getTournamentRegistrations(
-      int playerUserId,) async {
+  Future<List<TournamentRegistrationModel>> getTournamentRegistrations() async {
     try {
       if (kDebugMode) {
-        print(
-            '🔍 [MyTournamentDS] Fetching registrations for userId: $playerUserId',);
+        print('🔍 [MyTournamentDS] Fetching tournament registrations...');
       }
 
       final response = await _apiClient.post(
         ApiEndpoints.getTournamentRegistrationsList,
-        data: {'playerUserId': playerUserId},
+        data: {}, // Empty payload = get current user's registrations from token
       );
 
       _validateResponse(response, 'Failed to load tournament registrations');
@@ -104,12 +104,15 @@ class MyTournamentRemoteDataSource {
 
       if (kDebugMode) {
         print(
-            '✅ [MyTournamentDS] Registrations fetched: ${registrationsList.length} items',);
+          '✅ [MyTournamentDS] Registrations fetched: ${registrationsList.length} items',
+        );
       }
 
       final registrations = registrationsList
-          .map((e) =>
-              TournamentRegistrationModel.fromJson(e as Map<String, dynamic>),)
+          .map(
+            (e) =>
+                TournamentRegistrationModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
 
       final cacheData = registrations.map((e) => e.toJson()).toList();
@@ -133,7 +136,8 @@ class MyTournamentRemoteDataSource {
         if (cached != null) {
           if (kDebugMode) {
             print(
-                '✅ [MyTournamentDS] Returning cached registrations (offline mode)',);
+              '✅ [MyTournamentDS] Returning cached registrations (offline mode)',
+            );
           }
           return cached;
         }
@@ -160,18 +164,22 @@ class MyTournamentRemoteDataSource {
     if (cached != null && cached is List) {
       if (kDebugMode) {
         print(
-            '📦 [MyTournamentDS] Cache hit: ${cached.length} team players for teamId: $teamId',);
+          '📦 [MyTournamentDS] Cache hit: ${cached.length} team players for teamId: $teamId',
+        );
       }
       return cached
-          .map((e) =>
-              TournamentTeamPlayerModel.fromJson(e as Map<String, dynamic>),)
+          .map(
+            (e) =>
+                TournamentTeamPlayerModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
     }
     return null;
   }
 
   Future<List<TournamentTeamPlayerModel>> getTournamentTeamPlayers(
-      int teamId,) async {
+    int teamId,
+  ) async {
     try {
       if (kDebugMode) {
         print('🔍 [MyTournamentDS] Fetching team players for teamId: $teamId');
@@ -206,19 +214,23 @@ class MyTournamentRemoteDataSource {
 
       if (kDebugMode) {
         print(
-            '✅ [MyTournamentDS] Team players fetched: ${playersList.length} items',);
+          '✅ [MyTournamentDS] Team players fetched: ${playersList.length} items',
+        );
       }
 
       final players = playersList
-          .map((e) =>
-              TournamentTeamPlayerModel.fromJson(e as Map<String, dynamic>),)
+          .map(
+            (e) =>
+                TournamentTeamPlayerModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList();
 
       final cacheData = players.map((e) => e.toJson()).toList();
       await _cache.save(_cacheKeyTeamPlayers(teamId), cacheData);
       if (kDebugMode) {
         print(
-            '💾 [MyTournamentDS] Team players cached for offline access (teamId: $teamId)',);
+          '💾 [MyTournamentDS] Team players cached for offline access (teamId: $teamId)',
+        );
       }
 
       return players;
@@ -236,7 +248,8 @@ class MyTournamentRemoteDataSource {
         if (cached != null) {
           if (kDebugMode) {
             print(
-                '✅ [MyTournamentDS] Returning cached team players (offline mode)',);
+              '✅ [MyTournamentDS] Returning cached team players (offline mode)',
+            );
           }
           return cached;
         }
@@ -255,24 +268,29 @@ class MyTournamentRemoteDataSource {
     await _cache.clear(_cacheKeyTeamPlayers(teamId));
     if (kDebugMode) {
       print(
-          '🗑️ [MyTournamentDS] Team players cache cleared for teamId: $teamId',);
+        '🗑️ [MyTournamentDS] Team players cache cleared for teamId: $teamId',
+      );
     }
   }
 
   Future<void> saveRegistrationToCache(
-      TournamentRegistrationModel registration,) async {
+    TournamentRegistrationModel registration,
+  ) async {
     try {
       if (kDebugMode) {
         print(
-            '💾 [MyTournamentDS] Saving registration to cache: tournamentId=${registration.tournamentId}',);
+          '💾 [MyTournamentDS] Saving registration to cache: tournamentId=${registration.tournamentId}',
+        );
       }
 
       final List<TournamentRegistrationModel> registrations =
           getCachedRegistrations() ?? [];
 
-      final existingIndex = registrations.indexWhere((r) =>
-          r.id == registration.id ||
-          r.tournamentId == registration.tournamentId,);
+      final existingIndex = registrations.indexWhere(
+        (r) =>
+            r.id == registration.id ||
+            r.tournamentId == registration.tournamentId,
+      );
 
       if (existingIndex != -1) {
         registrations[existingIndex] = registration;
@@ -291,7 +309,8 @@ class MyTournamentRemoteDataSource {
 
       if (kDebugMode) {
         print(
-            '✅ [MyTournamentDS] Cache updated: ${registrations.length} total registrations',);
+          '✅ [MyTournamentDS] Cache updated: ${registrations.length} total registrations',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -308,11 +327,13 @@ class MyTournamentRemoteDataSource {
   }
 
   Future<List<Map<String, dynamic>>> getEnrolledPlayers(
-      int tournamentId,) async {
+    int tournamentId,
+  ) async {
     try {
       if (kDebugMode) {
         print(
-            '🔍 [MyTournamentDS] Fetching enrolled players for tournamentId: $tournamentId',);
+          '🔍 [MyTournamentDS] Fetching enrolled players for tournamentId: $tournamentId',
+        );
       }
 
       final response = await _apiClient.post(
