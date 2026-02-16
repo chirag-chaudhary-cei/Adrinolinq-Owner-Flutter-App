@@ -528,22 +528,44 @@ class OnboardingRemoteDataSource {
     }
   }
 
-  /// Get a single sport by id
+  /// Get a single sport by id using dedicated detail API
+  ///
+  /// **API Strategy:**
+  /// - Use `getSportsList` for list pages (sports selection, sports list)
+  /// - Use `getSportsDetails` for detail pages (sport detail view)
+  ///
+  /// Uses POST /api/Sports/getSportsDetails endpoint
   Future<SportsModel?> getSportById(int id) async {
     try {
+      if (kDebugMode) {
+        print('🔍 [OnboardingDS] Fetching sport details for id: $id');
+      }
+
       final response = await _apiClient.post(
-        ApiEndpoints.getSportsList,
+        ApiEndpoints.getSportsDetails,
         data: {'id': id},
       );
 
-      _validateResponse(response, 'Failed to load sport');
+      _validateResponse(response, 'Failed to load sport details');
 
       final obj = response.data['obj'];
+
+      // Handle both single object and list response formats
+      if (obj is Map<String, dynamic>) {
+        if (kDebugMode) {
+          print('✅ [OnboardingDS] Sport details fetched: ${obj['name']}');
+        }
+        return SportsModel.fromJson(obj);
+      }
       if (obj is List && obj.isNotEmpty) {
+        if (kDebugMode) {
+          print('✅ [OnboardingDS] Sport details fetched from list');
+        }
         return SportsModel.fromJson(obj.first as Map<String, dynamic>);
       }
-      if (obj is Map<String, dynamic>) {
-        return SportsModel.fromJson(obj);
+
+      if (kDebugMode) {
+        print('⚠️ [OnboardingDS] Sport not found for id: $id');
       }
       return null;
     } on DioException catch (e) {

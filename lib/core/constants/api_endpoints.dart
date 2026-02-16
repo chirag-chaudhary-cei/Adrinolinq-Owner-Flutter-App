@@ -36,12 +36,15 @@ class ApiEndpoints {
 
   // Sports
   static const String getSportsList = '/api/Sports/getSportsList';
+  static const String getSportsDetails = '/api/Sports/getSportsDetails';
   static const String savePlayerSportsPreferences =
       '/api/PlayerSportsPreferences/savePlayerSportsPreferences';
 
   // Tournaments
   static const String getTournamentsList =
       '/api/Tournaments/getTournamentsList';
+  static const String getTournamentsDetails =
+      '/api/Tournaments/getTournamentsDetails';
 
   // Tournament Registrations
   static const String getTournamentRegistrationsList =

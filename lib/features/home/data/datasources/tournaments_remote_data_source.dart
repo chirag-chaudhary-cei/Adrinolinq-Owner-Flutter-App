@@ -225,12 +225,32 @@ class TournamentsRemoteDataSource {
     }
   }
 
+  /// Get tournament by ID using dedicated detail API
+  ///
+  /// **API Strategy:**
+  /// - Use `getTournamentsList` for list pages (home, my tournaments)
+  /// - Use `getTournamentsDetails` for detail pages (tournament detail view)
+  ///
+  /// Uses POST /api/Tournaments/getTournamentsDetails endpoint
+  /// Returns complete tournament information with all filters applied
   Future<TournamentModel?> getTournamentById(int tournamentId) async {
     try {
       if (kDebugMode) {
-        print('🔍 [TournamentsDS] Fetching tournament by ID: $tournamentId');
+        print(
+            '🔍 [TournamentsDS] Fetching tournament details for ID: $tournamentId');
       }
 
+      // Check cache first for offline-first strategy
+      final cachedDetail = _cache.getTournamentDetail(tournamentId);
+      if (cachedDetail != null) {
+        if (kDebugMode) {
+          print(
+              '📦 [TournamentsDS] Cache hit: tournament detail $tournamentId');
+        }
+        return TournamentModel.fromJson(cachedDetail);
+      }
+
+      // Fallback to list cache
       final cachedList = _cache.getTournamentsList();
       if (cachedList != null && cachedList.isNotEmpty) {
         final cachedTournament = cachedList.firstWhere(
@@ -239,12 +259,15 @@ class TournamentsRemoteDataSource {
         );
         if (cachedTournament.isNotEmpty) {
           if (kDebugMode) {
-            print('📦 [TournamentsDS] Cache hit: tournament $tournamentId');
+            print(
+                '📦 [TournamentsDS] Cache hit from list: tournament $tournamentId');
           }
           return TournamentModel.fromJson(cachedTournament);
         }
       }
 
+      // Use dedicated detail API endpoint for tournament details page
+      // Include filters to ensure we only get active, non-deleted tournaments
       final payload = {
         'id': tournamentId,
         'status': true,
@@ -253,25 +276,38 @@ class TournamentsRemoteDataSource {
       };
 
       final response = await _apiClient.post(
-        ApiEndpoints.getTournamentsList,
+        ApiEndpoints.getTournamentsDetails,
         data: payload,
       );
 
-      _validateResponse(response, 'Failed to fetch tournament');
+      _validateResponse(response, 'Failed to fetch tournament details');
 
       final data = response.data as Map<String, dynamic>;
-      final obj = data['obj'] as List<dynamic>?;
+      final obj = data['obj'];
 
-      if (obj == null || obj.isEmpty) {
+      // Handle both single object and list response formats
+      TournamentModel? tournament;
+      if (obj is Map<String, dynamic>) {
+        tournament = TournamentModel.fromJson(obj);
+        if (kDebugMode) {
+          print(
+              '✅ [TournamentsDS] Tournament details fetched: ${tournament.name}');
+        }
+      } else if (obj is List && obj.isNotEmpty) {
+        tournament =
+            TournamentModel.fromJson(obj.first as Map<String, dynamic>);
+        if (kDebugMode) {
+          print(
+              '✅ [TournamentsDS] Tournament details fetched from list: ${tournament.name}');
+        }
+      } else {
         if (kDebugMode) {
           print('⚠️ [TournamentsDS] Tournament $tournamentId not found');
         }
         return null;
       }
 
-      final tournament =
-          TournamentModel.fromJson(obj.first as Map<String, dynamic>);
-
+      // Cache the tournament detail for offline access
       await _cache.saveTournamentDetail(tournamentId, tournament.toJson());
       if (kDebugMode) {
         print(

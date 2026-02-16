@@ -399,7 +399,7 @@ class AppLoading {
   /// Loading indicator for dropdowns
   static Widget dropdown({String label = 'Loading...'}) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
       children: [
         circularSmall(size: 20.0, strokeWidth: 2.0),
         const SizedBox(width: 12),

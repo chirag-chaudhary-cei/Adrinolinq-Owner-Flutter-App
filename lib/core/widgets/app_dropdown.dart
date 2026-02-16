@@ -54,6 +54,7 @@ class AppDropdown<T> extends StatefulWidget {
     this.validator,
     this.contentPadding,
     this.isRequired = false,
+    this.borderRadius,
   });
 
   /// The label/placeholder text when no value is selected
@@ -92,6 +93,9 @@ class AppDropdown<T> extends StatefulWidget {
 
   /// Whether this field is required (shows asterisk)
   final bool isRequired;
+
+  /// Optional custom border radius (defaults to 10 if not provided)
+  final double? borderRadius;
 
   @override
   State<AppDropdown<T>> createState() => _AppDropdownFieldState<T>();
@@ -280,23 +284,17 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
     final needsScrolling = totalContentHeight > height;
     const borderColor = Color(0xFF000000);
     final borderWidth = AppResponsive.thickness(context, 2);
+    // Dropdown list always uses radius 10
+    final listRadius = AppResponsive.radius(context, 10);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(
-            _displayBelow ? AppResponsive.radius(context, 10) : 0,
-          ),
-          bottomRight: Radius.circular(
-            _displayBelow ? AppResponsive.radius(context, 10) : 0,
-          ),
-          topLeft: Radius.circular(
-            !_displayBelow ? AppResponsive.radius(context, 10) : 0,
-          ),
-          topRight: Radius.circular(
-            !_displayBelow ? AppResponsive.radius(context, 10) : 0,
-          ),
+          bottomLeft: Radius.circular(_displayBelow ? listRadius : 0),
+          bottomRight: Radius.circular(_displayBelow ? listRadius : 0),
+          topLeft: Radius.circular(!_displayBelow ? listRadius : 0),
+          topRight: Radius.circular(!_displayBelow ? listRadius : 0),
         ),
         border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: [
@@ -361,7 +359,11 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = AppResponsive.borderRadius(context, 10);
+    // When closed: use custom radius, when open: use radius 10
+    final radiusValue = _isOpen
+        ? AppResponsive.radius(context, 10)
+        : AppResponsive.radius(context, widget.borderRadius ?? 10);
+    final borderRadius = BorderRadius.circular(radiusValue);
     final borderColor = _errorText != null
         ? AppColors.error
         : widget.enabled
@@ -385,13 +387,8 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
             width: borderWidth,
           ),
         ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: AppResponsive.s(context, 12),
-          ),
-          child: AppLoading.dropdown(
-            label: 'Loading ${widget.label}...',
-          ),
+        child: AppLoading.dropdown(
+          label: 'Loading ${widget.label}...',
         ),
       );
     }
@@ -417,23 +414,23 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(
                         _displayBelow
-                            ? AppResponsive.radius(context, 10)
-                            : (_isOpen ? 0 : AppResponsive.radius(context, 10)),
+                            ? radiusValue
+                            : (_isOpen ? 0 : radiusValue),
                       ),
                       topRight: Radius.circular(
                         _displayBelow
-                            ? AppResponsive.radius(context, 10)
-                            : (_isOpen ? 0 : AppResponsive.radius(context, 10)),
+                            ? radiusValue
+                            : (_isOpen ? 0 : radiusValue),
                       ),
                       bottomLeft: Radius.circular(
                         _displayBelow
-                            ? (_isOpen ? 0 : AppResponsive.radius(context, 10))
-                            : AppResponsive.radius(context, 10),
+                            ? (_isOpen ? 0 : radiusValue)
+                            : radiusValue,
                       ),
                       bottomRight: Radius.circular(
                         _displayBelow
-                            ? (_isOpen ? 0 : AppResponsive.radius(context, 10))
-                            : AppResponsive.radius(context, 10),
+                            ? (_isOpen ? 0 : radiusValue)
+                            : radiusValue,
                       ),
                     ),
                     border: Border.all(color: borderColor, width: borderWidth),

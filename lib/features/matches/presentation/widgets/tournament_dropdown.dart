@@ -43,6 +43,7 @@ class TournamentDropdown extends StatelessWidget {
       enabled: enabled && !isLoading,
       isLoading: isLoading,
       prefixIcon: icon,
+      borderRadius: 46,
       onChanged: (tournament) => onChanged(tournament?.id),
     );
   }

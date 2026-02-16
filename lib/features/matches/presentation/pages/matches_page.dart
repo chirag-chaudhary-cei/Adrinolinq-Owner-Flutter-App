@@ -77,14 +77,11 @@ class _MatchesPageState extends ConsumerState<MatchesPage> {
             Divider(height: 1, color: Colors.grey[200]),
 
             // Filters
-            Container(
+            Padding(
               padding: EdgeInsets.only(
                 top: AppResponsive.s(context, 16),
                 left: AppResponsive.s(context, 16),
                 right: AppResponsive.s(context, 16),
-              ),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(46),
               ),
               child: tournamentsAsync.when(
                 data: (tournaments) {
