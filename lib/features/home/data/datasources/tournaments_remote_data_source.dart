@@ -353,12 +353,20 @@ class TournamentsRemoteDataSource {
     }
   }
 
+  /// Get cached tournament by ID (immediate return, no API call)
+  /// Checks detail cache first (most complete), then falls back to list cache
   TournamentModel? getCachedTournamentById(int tournamentId) {
+    // Check detail cache first (contains complete data with sponsors)
     final cachedDetail = _cache.getTournamentDetail(tournamentId);
     if (cachedDetail != null) {
+      if (kDebugMode) {
+        print(
+            '📦 [TournamentsDS] Detail cache hit for tournament $tournamentId');
+      }
       return TournamentModel.fromJson(cachedDetail);
     }
 
+    // Fallback to list cache (may be incomplete)
     final cachedList = _cache.getTournamentsList();
     if (cachedList != null) {
       final cachedTournament = cachedList.firstWhere(
@@ -366,10 +374,115 @@ class TournamentsRemoteDataSource {
         orElse: () => <String, dynamic>{},
       );
       if (cachedTournament.isNotEmpty) {
+        if (kDebugMode) {
+          print(
+              '📦 [TournamentsDS] List cache hit for tournament $tournamentId (may lack sponsors)');
+        }
         return TournamentModel.fromJson(cachedTournament);
       }
     }
+
+    if (kDebugMode) {
+      print('🚫 [TournamentsDS] No cache found for tournament $tournamentId');
+    }
     return null;
+  }
+
+  /// Get tournament details by ID - ALWAYS fetches fresh from API (bypasses cache)
+  /// Use this for detail pages to ensure complete and fresh tournament data
+  Future<TournamentModel?> getTournamentDetailsFresh(int tournamentId) async {
+    try {
+      if (kDebugMode) {
+        print('');
+        print('═══════════════════════════════════════════════════════');
+        print('🚀 [TournamentsDS] FETCHING FRESH TOURNAMENT DETAILS');
+        print('   Tournament ID: $tournamentId');
+        print('   🔓 CACHE BYPASSED - Direct API call');
+        print('═══════════════════════════════════════════════════════');
+      }
+
+      // Use dedicated detail API endpoint - NO CACHE CHECK
+      final payload = {
+        'id': tournamentId,
+        'status': true,
+        'deleted': false,
+        'enrollmentType': 1,
+      };
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getTournamentsDetails,
+        data: payload,
+      );
+
+      _validateResponse(response, 'Failed to fetch tournament details');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'];
+
+      // Handle both single object and list response formats
+      TournamentModel? tournament;
+      if (obj is Map<String, dynamic>) {
+        tournament = TournamentModel.fromJson(obj);
+        if (kDebugMode) {
+          print(
+              '✅ [TournamentsDS] FRESH tournament details fetched: ${tournament.name}');
+          print('   📊 Current Registered: ${tournament.currentRegistered}');
+          print('   🏆 Sponsors: ${tournament.tournamentSponsorsList.length}');
+          print(
+              '   🛠️ Equipment: ${tournament.equipmentsRequired ?? "Not specified"}');
+        }
+      } else if (obj is List && obj.isNotEmpty) {
+        tournament =
+            TournamentModel.fromJson(obj.first as Map<String, dynamic>);
+        if (kDebugMode) {
+          print(
+              '✅ [TournamentsDS] FRESH tournament details fetched from list: ${tournament.name}');
+          print('   📊 Current Registered: ${tournament.currentRegistered}');
+          print('   🏆 Sponsors: ${tournament.tournamentSponsorsList.length}');
+          print(
+              '   🛠️ Equipment: ${tournament.equipmentsRequired ?? "Not specified"}');
+        }
+      } else {
+        if (kDebugMode) {
+          print('⚠️ [TournamentsDS] Tournament $tournamentId not found');
+        }
+        return null;
+      }
+
+      // Cache the tournament detail for offline access
+      await _cache.saveTournamentDetail(tournamentId, tournament.toJson());
+      if (kDebugMode) {
+        print(
+            '💾 [TournamentsDS] Cached FRESH tournament detail: ${tournament.name}');
+        print('');
+      }
+
+      return tournament;
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print(
+          '❌ [TournamentsDS] DioException fetching FRESH tournament: ${_handleError(e)}',
+        );
+      }
+
+      // Only on network error, fallback to cache
+      final cachedDetail = _cache.getTournamentDetail(tournamentId);
+      if (cachedDetail != null) {
+        if (kDebugMode) {
+          print(
+            '📴 [TournamentsDS] Network error - returning cached tournament detail (offline mode)',
+          );
+        }
+        return TournamentModel.fromJson(cachedDetail);
+      }
+
+      throw Exception(_handleError(e));
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [TournamentsDS] Error fetching FRESH tournament: $e');
+      }
+      throw Exception('Failed to fetch tournament details: $e');
+    }
   }
 
   Future<List<TeamModel>> getTeamsList(int tournamentId) async {

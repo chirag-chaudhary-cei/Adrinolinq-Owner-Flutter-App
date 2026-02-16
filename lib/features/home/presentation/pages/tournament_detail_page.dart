@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../auth/presentation/providers/onboarding_providers.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
@@ -72,10 +71,10 @@ String _formatDateRange(String startDate, String endDate) {
 class TournamentDetailPage extends ConsumerStatefulWidget {
   const TournamentDetailPage({
     super.key,
-    required this.tournament,
+    required this.tournamentId,
   });
 
-  final TournamentModel tournament;
+  final int tournamentId;
 
   @override
   ConsumerState<TournamentDetailPage> createState() =>
@@ -136,7 +135,6 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   @override
   void initState() {
     super.initState();
-    _checkRegistrationStatus();
     _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -157,12 +155,12 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     super.dispose();
   }
 
-  Future<void> _checkRegistrationStatus() async {
+  Future<void> _checkRegistrationStatus(TournamentModel tournament) async {
     bool isClosed = false;
-    if (widget.tournament.registrationCloseDate.isNotEmpty) {
+    if (tournament.registrationCloseDate.isNotEmpty) {
       try {
         final normalized =
-            widget.tournament.registrationCloseDate.replaceAll('/', '-');
+            tournament.registrationCloseDate.replaceAll('/', '-');
         final closeDate = DateFormat('dd-MM-yyyy HH:mm:ss').parse(normalized);
         isClosed = DateTime.now().isAfter(closeDate);
       } catch (_) {
@@ -173,13 +171,18 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     if (mounted) {
       setState(() {
         _isRegistrationClosed = isClosed;
-        _canRegister = widget.tournament.openOrClose;
+        _canRegister = tournament.openOrClose;
         _isLoading = false;
       });
     }
   }
 
   Future<void> _showInviteCodeDialog() async {
+    // Fetch current tournament data
+    final tournament =
+        await ref.read(tournamentDetailsProvider(widget.tournamentId).future);
+    if (tournament == null) return;
+
     final inviteCodeController = TextEditingController();
     final parentContext = context;
 
@@ -295,7 +298,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                               ref.read(tournamentsRemoteDataSourceProvider);
                           final result = await dataSource
                               .saveTournamentRegistrationWithInviteCode(
-                            tournamentId: widget.tournament.id,
+                            tournamentId: tournament.id,
                             teamId: _selectedTeamId!,
                             inviteCode: inputCode,
                           );
@@ -321,7 +324,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                             parentContext,
                             title: 'Registration Successful!',
                             message:
-                                'You have successfully registered for ${widget.tournament.name}.',
+                                'You have successfully registered for ${tournament.name}.',
                           );
 
                           if (!mounted) return;
@@ -350,6 +353,11 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   }
 
   Future<void> _showCreateTeamDialog() async {
+    // Fetch current tournament data
+    final tournament =
+        await ref.read(tournamentDetailsProvider(widget.tournamentId).future);
+    if (tournament == null) return;
+
     final teamNameController = TextEditingController();
     final captainContactController = TextEditingController();
     bool isLoading = false;
@@ -416,7 +424,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                     }
 
                     final result = await dataSource.saveTournamentTeam(
-                      tournamentId: widget.tournament.id,
+                      tournamentId: tournament.id,
                       name: teamName,
                       captainUserId: captainUserId,
                     );
@@ -445,7 +453,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => CreateTeamPage(
-                          tournament: widget.tournament,
+                          tournament: tournament,
                           openDialogOnStart: true,
                           teamId: teamId,
                         ),
@@ -480,6 +488,11 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
       return;
     }
 
+    // Fetch current tournament data
+    final tournament =
+        await ref.read(tournamentDetailsProvider(widget.tournamentId).future);
+    if (tournament == null) return;
+
     if (_canRegister == true) {
       // Open registration - directly register the selected team
       AppLoading.showDialog(
@@ -491,7 +504,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
         final dataSource = ref.read(tournamentsRemoteDataSourceProvider);
         final result = await dataSource.saveTournamentRegistrations(
           teamId: _selectedTeamId!,
-          tournamentId: widget.tournament.id,
+          tournamentId: tournament.id,
         );
 
         if (kDebugMode) {
@@ -506,8 +519,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
         await AppDialogs.showSuccess(
           context,
           title: 'Registration Successful!',
-          message:
-              'Your team has been registered for ${widget.tournament.name}.',
+          message: 'Your team has been registered for ${tournament.name}.',
         );
 
         if (!mounted) return;
@@ -527,7 +539,8 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     }
   }
 
-  Widget _buildCollapsibleHeader(BuildContext context) {
+  Widget _buildCollapsibleHeader(
+      BuildContext context, TournamentModel tournament) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
     _maxHeaderHeight = AppResponsive.sh(context, 340);
 
@@ -556,7 +569,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
               Positioned.fill(
                 child: Opacity(
                   opacity: heroContentOpacity,
-                  child: _HeroImageSection(tournament: widget.tournament),
+                  child: _HeroImageSection(tournament: tournament),
                 ),
               ),
               Positioned(
@@ -588,7 +601,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      widget.tournament.name,
+                      tournament.name,
                       style: TextStyle(
                         fontFamily: 'SFProRounded',
                         fontSize: AppResponsive.font(context, 18),
@@ -618,7 +631,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                 child: KeyedSubtree(
                   key: _sponsorsKey,
                   child: _SponsorsSection(
-                    tournamentId: widget.tournament.id,
+                    tournament: tournament,
                   ),
                 ),
               ),
@@ -629,14 +642,15 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     );
   }
 
-  Widget _buildScrollableContent(BuildContext context) {
+  Widget _buildScrollableContent(
+      BuildContext context, TournamentModel tournament) {
     return SingleChildScrollView(
       controller: _scrollController,
       physics: const ClampingScrollPhysics(),
       padding: EdgeInsets.only(top: _expandedTotalHeight),
       child: Column(
         children: [
-          _ContentSection(tournament: widget.tournament),
+          _ContentSection(tournament: tournament),
           SizedBox(height: AppResponsive.sh(context, 120)),
         ],
       ),
@@ -647,18 +661,171 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   Widget build(BuildContext context) {
     _measureSponsorsHeight();
 
+    if (kDebugMode) {
+      print(
+          '📄 [TournamentDetailPage] Building detail page for tournament ID: ${widget.tournamentId}');
+    }
+
+    final tournamentAsync =
+        ref.watch(tournamentDetailsProvider(widget.tournamentId));
+
+    return tournamentAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            // Loading content
+            Positioned.fill(
+              child: Column(
+                children: [
+                  // Status bar padding
+                  SizedBox(height: MediaQuery.of(context).padding.top),
+                  // Header space for back button
+                  SizedBox(height: AppResponsive.s(context, 72)),
+                  // Loading indicator in center
+                  Expanded(
+                    child: Center(
+                      child: AppLoading.center(
+                        message: "Loading tournament details...",
+                      ),
+                    ),
+                  ),
+                  // Footer space for button
+                  SizedBox(height: AppResponsive.sh(context, 120)),
+                ],
+              ),
+            ),
+            // Header with back button
+            Positioned(
+              top: MediaQuery.of(context).padding.top +
+                  AppResponsive.s(context, 12),
+              left: AppResponsive.s(context, 16),
+              child: const AppBackButton(
+                isTransparent: false,
+              ),
+            ),
+            // Footer with disabled button
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Container(
+                  padding: AppResponsive.padding(
+                    context,
+                    horizontal: 20,
+                    top: 8,
+                    bottom: 16,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                  ),
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: AppButton(
+                      text: 'Loading...',
+                      onPressed: null,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      error: (error, stack) => Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: const AppBackButton(),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: AppResponsive.icon(context, 64),
+                color: Colors.red,
+              ),
+              AppResponsive.verticalSpace(context, 16),
+              Text(
+                'Failed to load tournament details',
+                style: TextStyle(
+                  fontSize: AppResponsive.font(context, 16),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+              AppResponsive.verticalSpace(context, 8),
+              Text(
+                error.toString().replaceAll('Exception: ', ''),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppResponsive.font(context, 14),
+                  color: Colors.grey.shade500,
+                ),
+              ),
+              AppResponsive.verticalSpace(context, 24),
+              AppButton(
+                text: 'Try Again',
+                onPressed: () {
+                  ref.invalidate(
+                      tournamentDetailsProvider(widget.tournamentId));
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      data: (tournament) {
+        if (tournament == null) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              leading: const AppBackButton(),
+            ),
+            body: Center(
+              child: Text(
+                'Tournament not found',
+                style: TextStyle(
+                  fontSize: AppResponsive.font(context, 16),
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ),
+          );
+        }
+
+        // Check registration status when tournament loads
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_isLoading) {
+            _checkRegistrationStatus(tournament);
+          }
+        });
+
+        return _buildTournamentDetail(context, tournament);
+      },
+    );
+  }
+
+  Widget _buildTournamentDetail(
+      BuildContext context, TournamentModel tournament) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
           Positioned.fill(
-            child: _buildScrollableContent(context),
+            child: _buildScrollableContent(context, tournament),
           ),
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            child: _buildCollapsibleHeader(context),
+            child: _buildCollapsibleHeader(context, tournament),
           ),
           Positioned(
             left: 0,
@@ -729,7 +896,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                               SizedBox(height: AppResponsive.s(context, 12)),
                               AppButton(
                                 text: _canRegister == true
-                                    ? "Register Now • INR${widget.tournament.feesAmount.toStringAsFixed(0)}"
+                                    ? "Register Now • INR${tournament.feesAmount.toStringAsFixed(0)}"
                                     : "Submit Invite Code",
                                 onPressed: _handleRegister,
                               ),
@@ -813,85 +980,51 @@ class _HeroImageSection extends ConsumerWidget {
             bottom: AppResponsive.s(context, 16),
             left: AppResponsive.s(context, 20),
             right: AppResponsive.s(context, 20),
-            child: Consumer(
-              builder: (context, ref, child) {
-                final sportsAsync = ref.watch(sportsListProvider);
-                final sportName = sportsAsync.maybeWhen(
-                  data: (sports) {
-                    try {
-                      for (final s in sports) {
-                        if (s is Map<String, dynamic>) {
-                          final id = s['sportsId'] ?? s['id'];
-                          if (id == tournament.sportId) {
-                            return (s['sportsName'] ??
-                                s['name'] ??
-                                tournament.sport) as String;
-                          }
-                        } else {
-                          try {
-                            final id =
-                                (s as dynamic).sportsId ?? (s as dynamic).id;
-                            if (id == tournament.sportId) {
-                              return ((s as dynamic).sportsName ??
-                                  (s as dynamic).name ??
-                                  tournament.sport) as String;
-                            }
-                          } catch (_) {}
-                        }
-                      }
-                    } catch (_) {}
-                    return tournament.sport;
-                  },
-                  orElse: () => tournament.sport,
-                );
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: AppResponsive.paddingSymmetric(
-                        context,
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: AppResponsive.borderRadius(context, 16),
-                      ),
-                      child: Text(
-                        _capitalize(sportName),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: AppResponsive.paddingSymmetric(
+                    context,
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: AppResponsive.borderRadius(context, 16),
+                  ),
+                  child: Text(
+                    _capitalize(tournament.sport),
+                    style: TextStyle(
+                      fontSize: AppResponsive.font(context, 12),
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                AppResponsive.verticalSpace(context, 10),
+                Text(
+                  _capitalize(tournament.name),
+                  style: TextStyle(
+                    fontSize: AppResponsive.font(context, 24),
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                ),
+                AppResponsive.verticalSpace(context, 8),
+                tournament.openOrClose
+                    ? Text(
+                        'INR ${tournament.feesAmount.toStringAsFixed(0)}',
                         style: TextStyle(
-                          fontSize: AppResponsive.font(context, 12),
+                          fontSize: AppResponsive.font(context, 17),
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppColors.accentBlue,
                         ),
-                      ),
-                    ),
-                    AppResponsive.verticalSpace(context, 10),
-                    Text(
-                      _capitalize(tournament.name),
-                      style: TextStyle(
-                        fontSize: AppResponsive.font(context, 24),
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        height: 1.2,
-                      ),
-                    ),
-                    AppResponsive.verticalSpace(context, 8),
-                    tournament.openOrClose
-                        ? Text(
-                            'INR ${tournament.feesAmount.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontSize: AppResponsive.font(context, 17),
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.accentBlue,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ],
-                );
-              },
+                      )
+                    : const SizedBox.shrink(),
+              ],
             ),
           ),
         ],
@@ -981,7 +1114,9 @@ class _ContentSection extends StatelessWidget {
                   Transform.translate(
                     offset: Offset(0, AppResponsive.s(context, -2)),
                     child: Text(
-                      'Racket, Shuttlecock provided',
+                      tournament.equipmentsRequired?.isNotEmpty == true
+                          ? tournament.equipmentsRequired!
+                          : 'Racket, Shuttlecock provided',
                       style: TextStyle(
                         fontSize: AppResponsive.font(context, 16),
                         fontWeight: FontWeight.w400,
@@ -1091,7 +1226,7 @@ class _InfoCardsContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const registeredCount = 0;
+    final registeredCount = tournament.currentRegistered;
     final progress = tournament.maximumRegistrationsCount > 0
         ? registeredCount / tournament.maximumRegistrationsCount
         : 0.0;
@@ -1391,27 +1526,30 @@ class _RuleItem extends StatelessWidget {
 
 class _SponsorsSection extends ConsumerWidget {
   const _SponsorsSection({
-    required this.tournamentId,
+    required this.tournament,
   });
 
-  final int tournamentId;
+  final TournamentModel tournament;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sponsorsAsync = ref.watch(sponsorsListProvider(tournamentId));
+    final sponsorsData = tournament.tournamentSponsorsList;
 
-    return sponsorsAsync.when(
-      data: (sponsorsData) {
-        if (sponsorsData.isEmpty) {
-          return const SizedBox(height: 0, width: double.infinity);
-        }
+    if (kDebugMode) {
+      print('👁️ [_SponsorsSection] Building sponsors section');
+      print('   Tournament: ${tournament.name}');
+      print('   Sponsors count: ${sponsorsData.length}');
+      print('   Sponsors data: $sponsorsData');
+    }
 
-        return _SponsorsAutoScrollSection(sponsorsData: sponsorsData);
-      },
-      loading: () => const SizedBox(height: 0, width: double.infinity),
-      error: (error, stack) =>
-          const SizedBox(height: 0, width: double.infinity),
-    );
+    if (sponsorsData.isEmpty) {
+      if (kDebugMode) {
+        print('   ❌ No sponsors - returning empty SizedBox');
+      }
+      return const SizedBox(height: 0, width: double.infinity);
+    }
+
+    return _SponsorsAutoScrollSection(sponsorsData: sponsorsData);
   }
 }
 

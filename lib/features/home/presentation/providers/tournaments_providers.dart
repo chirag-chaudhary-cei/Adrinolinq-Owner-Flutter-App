@@ -39,7 +39,10 @@ class TournamentsNotifier extends AsyncNotifier<List<TournamentModel>> {
     final cached = repository.getCachedTournamentsList();
 
     if (cached != null && cached.isNotEmpty) {
-      SmartCacheDebug.logCacheHit();
+      if (kDebugMode) {
+        print(
+            '⚡ [TournamentsNotifier] Showing cached tournaments list immediately');
+      }
 
       SmartCacheDebug.logFetching();
       Future.microtask(() => _fetchAndCompare(cached, showIndicator: false));
@@ -47,7 +50,10 @@ class TournamentsNotifier extends AsyncNotifier<List<TournamentModel>> {
       return cached;
     }
 
-    SmartCacheDebug.logNoCache();
+    if (kDebugMode) {
+      print(
+          '🌐 [TournamentsNotifier] No cache, fetching tournaments list from API...');
+    }
     return await repository.getTournamentsList();
   }
 
@@ -167,11 +173,16 @@ final teamsListProvider = FutureProvider.autoDispose
 
   final cached = repository.getCachedTeamsList(tournamentId);
   if (cached != null && cached.isNotEmpty) {
-    SmartCacheDebug.logCacheHit();
+    if (kDebugMode) {
+      print(
+          '⚡ [teamsListProvider] Showing cached teams for tournament $tournamentId');
+    }
     return cached;
   }
 
-  SmartCacheDebug.logNoCache();
+  if (kDebugMode) {
+    print('🌐 [teamsListProvider] No cache, fetching teams from API...');
+  }
   return await repository.getTeamsList(tournamentId);
 });
 
@@ -181,11 +192,17 @@ final teamPlayersListProvider = FutureProvider.autoDispose
 
   final cached = repository.getCachedTeamPlayersList(teamId);
   if (cached != null && cached.isNotEmpty) {
-    SmartCacheDebug.logCacheHit();
+    if (kDebugMode) {
+      print(
+          '⚡ [teamPlayersListProvider] Showing cached players for team $teamId');
+    }
     return cached;
   }
 
-  SmartCacheDebug.logNoCache();
+  if (kDebugMode) {
+    print(
+        '🌐 [teamPlayersListProvider] No cache, fetching players from API...');
+  }
   return await repository.getTeamPlayersList(teamId);
 });
 
@@ -219,12 +236,76 @@ final tournamentByIdProvider = FutureProvider.autoDispose
 
   final cached = repository.getCachedTournamentById(tournamentId);
   if (cached != null) {
-    SmartCacheDebug.logCacheHit();
+    if (kDebugMode) {
+      print(
+          '⚡ [tournamentByIdProvider] Showing cached tournament $tournamentId');
+    }
     return cached;
   }
 
-  SmartCacheDebug.logNoCache();
+  if (kDebugMode) {
+    print('🌐 [tournamentByIdProvider] No cache, fetching from API...');
+  }
   return await repository.getTournamentById(tournamentId);
+});
+
+/// Provider for fetching tournament details with optimal caching
+/// Uses cache-first strategy: shows cached data immediately, refreshes silently in background
+/// This ensures instant loads with no loading states after first fetch
+final tournamentDetailsProvider = FutureProvider.autoDispose
+    .family<TournamentModel?, int>((ref, tournamentId) async {
+  if (kDebugMode) {
+    print('🎯 [tournamentDetailsProvider] Loading tournament $tournamentId...');
+  }
+  final repository = ref.watch(tournamentsRepositoryProvider);
+
+  // Check cache first for instant display
+  final cached = repository.getCachedTournamentById(tournamentId);
+  if (cached != null) {
+    if (kDebugMode) {
+      print(
+          '⚡ [tournamentDetailsProvider] Instant load from cache: ${cached.name}');
+      print('   📊 Cached sponsors: ${cached.tournamentSponsorsList.length}');
+      print('   🚀 NO LOADING STATE - showing cached data instantly!');
+    }
+
+    // Silently fetch fresh data in background and update cache (no UI reload)
+    Future.microtask(() async {
+      try {
+        if (kDebugMode) {
+          print(
+              '🔄 [tournamentDetailsProvider] Silent background refresh started...');
+        }
+        await repository.getTournamentDetailsFresh(tournamentId);
+        if (kDebugMode) {
+          print(
+              '✅ [tournamentDetailsProvider] Background refresh complete - cache updated silently');
+          print('   📝 Fresh data will be shown on next page visit');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ [tournamentDetailsProvider] Background refresh failed: $e');
+        }
+      }
+    });
+
+    return cached;
+  }
+
+  // No cache, fetch fresh data (only shows loading on first visit)
+  if (kDebugMode) {
+    print(
+        '🌐 [tournamentDetailsProvider] No cache found, fetching from API...');
+    print('   ⏳ This will show loading indicator (first visit only)');
+  }
+  final result = await repository.getTournamentDetailsFresh(tournamentId);
+  if (kDebugMode) {
+    print(
+        '✅ [tournamentDetailsProvider] Fresh tournament data loaded: ${result?.name}');
+    print('   📊 Sponsors: ${result?.tournamentSponsorsList.length ?? 0}');
+    print('   💾 Cached for instant future loads');
+  }
+  return result;
 });
 
 final tournamentRegistrationStatusProvider =

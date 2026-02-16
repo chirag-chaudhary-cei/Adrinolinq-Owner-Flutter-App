@@ -41,6 +41,12 @@ class TournamentsRepository {
     return _remoteDataSource.getCachedTournamentById(tournamentId);
   }
 
+  /// Get tournament details by ID - ALWAYS fetches fresh from API (bypasses cache)
+  /// Use this for detail pages to ensure complete and fresh tournament data
+  Future<TournamentModel?> getTournamentDetailsFresh(int tournamentId) async {
+    return await _remoteDataSource.getTournamentDetailsFresh(tournamentId);
+  }
+
   /// Get teams list for a specific tournament
   Future<List<TeamModel>> getTeamsList(int tournamentId) async {
     return await _remoteDataSource.getTeamsList(tournamentId);

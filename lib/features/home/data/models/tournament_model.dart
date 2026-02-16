@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// Tournament model representing tournament data from API
 class TournamentModel {
   const TournamentModel({
@@ -37,6 +39,9 @@ class TournamentModel {
     this.rules,
     this.openOrClose = true,
     this.inviteCode,
+    this.tournamentSponsorsList = const [],
+    this.currentRegistered = 0,
+    this.equipmentsRequired,
   });
 
   final int id;
@@ -75,8 +80,30 @@ class TournamentModel {
   final String? rules;
   final bool openOrClose;
   final String? inviteCode;
+  final List<Map<String, dynamic>> tournamentSponsorsList;
+  final int currentRegistered;
+  final String? equipmentsRequired;
 
   factory TournamentModel.fromJson(Map<String, dynamic> json) {
+    final sponsorsList = (json['tournamentSponsorsList'] as List<dynamic>?)
+            ?.map((e) => e as Map<String, dynamic>)
+            .toList() ??
+        [];
+
+    // Debug logging for sponsors
+    if (kDebugMode) {
+      print('🔍 [TournamentModel] fromJson for: ${json['name']}');
+      final rawSponsors = json['tournamentSponsorsList'];
+      print(
+          '   📋 Raw tournamentSponsorsList type: ${rawSponsors?.runtimeType ?? "null"}');
+      print(
+          '   📊 Sponsors count in JSON: ${(rawSponsors as List<dynamic>?)?.length ?? 0}');
+      print('   ✅ Parsed sponsors count: ${sponsorsList.length}');
+      if (sponsorsList.isNotEmpty) {
+        print('   🏆 First sponsor: ${sponsorsList.first}');
+      }
+    }
+
     return TournamentModel(
       id: json['id'] as int,
       creationTimestamp: json['creationTimestamp'] as String? ?? '',
@@ -117,11 +144,14 @@ class TournamentModel {
           ? true
           : (json['openOrClose'] == false ? false : true),
       inviteCode: json['inviteCode'] as String?,
+      tournamentSponsorsList: sponsorsList,
+      currentRegistered: json['currentRegistered'] as int? ?? 0,
+      equipmentsRequired: json['equipmentsRequired'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final jsonMap = {
       'id': id,
       'creationTimestamp': creationTimestamp,
       'createdById': createdById,
@@ -158,6 +188,18 @@ class TournamentModel {
       'rules': rules,
       'openOrClose': openOrClose,
       'inviteCode': inviteCode,
+      'tournamentSponsorsList': tournamentSponsorsList,
+      'currentRegistered': currentRegistered,
+      'equipmentsRequired': equipmentsRequired,
     };
+
+    if (kDebugMode) {
+      print('📤 [TournamentModel] toJson for: $name');
+      print('   🏆 Sponsors in model: ${tournamentSponsorsList.length}');
+      print(
+          '   📋 Sponsors in JSON output: ${jsonMap['tournamentSponsorsList']}');
+    }
+
+    return jsonMap;
   }
 }

@@ -489,65 +489,23 @@ class _GlassBottomPanel extends StatelessWidget {
           ),
           AppResponsive.verticalSpace(context, 3),
 
-          // Tags row - resolve sport name from sportId and show Tournament tag
-          Consumer(
-            builder: (context, ref, child) {
-              final sportsAsync = ref.watch(sportsListProvider);
-              final sportName = sportsAsync.maybeWhen(
-                data: (sports) {
-                  try {
-                    for (final s in sports) {
-                      if (s is Map<String, dynamic>) {
-                        final id = s['sportsId'] ?? s['id'];
-                        if (id == event.sportId) {
-                          return (s['sportsName'] ??
-                              s['name'] ??
-                              event.category) as String;
-                        }
-                      } else {
-                        try {
-                          final id =
-                              (s as dynamic).sportsId ?? (s as dynamic).id;
-                          if (id == event.sportId) {
-                            return ((s as dynamic).sportsName ??
-                                (s as dynamic).name ??
-                                event.category) as String;
-                          }
-                        } catch (_) {}
-                      }
-                    }
-                  } catch (_) {}
-                  return event.category;
-                },
-                orElse: () => event.category,
-              );
-
-              // Build tag widgets conditionally: always show sport; show
-              // 'Tournament' only when the event has multiple tags so we
-              // don't show two chips for a single-sport tournament.
-              final List<Widget> tagWidgets = [];
-              tagWidgets.add(
+          // Tags row - show sport name and Tournament tag
+          Row(
+            children: [
+              Padding(
+                padding: EdgeInsets.only(
+                  right: AppResponsive.s(context, 6),
+                ),
+                child: _TagChip(tag: event.category),
+              ),
+              if (event.tags.isNotEmpty && event.tags.length > 1)
                 Padding(
                   padding: EdgeInsets.only(
                     right: AppResponsive.s(context, 6),
                   ),
-                  child: _TagChip(tag: sportName),
+                  child: const _TagChip(tag: 'Tournament'),
                 ),
-              );
-
-              if (event.tags.isNotEmpty && event.tags.length > 1) {
-                tagWidgets.add(
-                  Padding(
-                    padding: EdgeInsets.only(
-                      right: AppResponsive.s(context, 6),
-                    ),
-                    child: const _TagChip(tag: 'Tournament'),
-                  ),
-                );
-              }
-
-              return Row(children: tagWidgets);
-            },
+            ],
           ),
           AppResponsive.verticalSpace(context, 4),
 

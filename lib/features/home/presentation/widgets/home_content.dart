@@ -11,8 +11,6 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/network/connectivity_service.dart';
 import '../providers/home_provider.dart';
 import '../providers/tournaments_providers.dart';
-import '../../../auth/presentation/providers/onboarding_providers.dart';
-import '../../../auth/data/models/sports_model.dart';
 import '../../data/models/tournament_model.dart';
 import '../../../../core/theme/app_responsive.dart';
 import '../../../../core/widgets/error_view.dart';
@@ -36,7 +34,6 @@ class HomeContent extends ConsumerStatefulWidget {
 class _HomeContentState extends ConsumerState<HomeContent>
     with WidgetsBindingObserver {
   String _searchQuery = '';
-  List<SportsModel>? _sportsList;
   StreamSubscription<bool>? _connectivitySubscription;
   bool _hasShownOfflineDialog = false;
 
@@ -189,16 +186,6 @@ class _HomeContentState extends ConsumerState<HomeContent>
     );
   }
 
-  String _getSportName(int sportId) {
-    if (_sportsList == null) return 'Sport';
-    try {
-      final sport = _sportsList!.firstWhere((s) => s.sportsId == sportId);
-      return sport.sportsName;
-    } catch (_) {
-      return 'Sport';
-    }
-  }
-
   EventModel _tournamentToEvent(TournamentModel tournament) {
     final dataSource = ref.read(tournamentsDataSourceProvider);
     final imageUrl =
@@ -256,10 +243,10 @@ class _HomeContentState extends ConsumerState<HomeContent>
       date: formattedDate,
       time: formattedTime,
       price: tournament.feesAmount.toStringAsFixed(0),
-      category: _getSportName(tournament.sportId),
+      category: tournament.sport,
       sportId: tournament.sportId,
       tags: [],
-      registeredCount: 0,
+      registeredCount: tournament.currentRegistered,
       maxParticipants: tournament.maximumRegistrationsCount,
       isLive: false,
       openOrClose: tournament.openOrClose,
@@ -276,12 +263,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
   @override
   Widget build(BuildContext context) {
     final tournamentsAsync = ref.watch(offlineFirstTournamentsProvider);
-    final sportsAsync = ref.watch(sportsListProvider);
     final isConnected = ConnectivityService.instance.isConnected;
-
-    sportsAsync.whenData((sports) {
-      _sportsList = sports.map((s) => SportsModel.fromJson(s)).toList();
-    });
 
     return legacy_provider.Consumer<HomeProvider>(
       builder: (context, provider, child) {
@@ -477,7 +459,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
                                     Navigator.pushNamed(
                                       context,
                                       AppRouter.tournamentDetail,
-                                      arguments: tournament,
+                                      arguments: tournament.id,
                                     );
                                   }
                                 },
@@ -511,7 +493,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
                                     Navigator.pushNamed(
                                       context,
                                       AppRouter.tournamentDetail,
-                                      arguments: tournament,
+                                      arguments: tournament.id,
                                     );
                                   }
                                 },

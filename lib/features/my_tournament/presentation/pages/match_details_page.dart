@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
@@ -74,6 +77,7 @@ class MatchTournamentModel {
   final String scoringStructure;
   final String equipmentRequired;
   final List<String> rules;
+  final List<dynamic> tournamentSponsorsList;
 
   const MatchTournamentModel({
     required this.event,
@@ -93,6 +97,7 @@ class MatchTournamentModel {
     required this.scoringStructure,
     required this.equipmentRequired,
     required this.rules,
+    required this.tournamentSponsorsList,
   });
 
   factory MatchTournamentModel.fromTournament({
@@ -152,6 +157,7 @@ class MatchTournamentModel {
       equipmentRequired:
           'Equipment as per ${tournament.sport} tournament requirements',
       rules: parsedRules,
+      tournamentSponsorsList: tournament.tournamentSponsorsList,
     );
   }
 }
@@ -184,46 +190,24 @@ class _MatchDetailsPageState extends ConsumerState<MatchDetailsPage>
     super.dispose();
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final sportsAsync = ref.watch(sportsListProvider);
-        final sportName = sportsAsync.maybeWhen(
-          data: (sports) {
-            if (widget.event.sportId != null) {
-              try {
-                for (final s in sports) {
-                  if (s is Map<String, dynamic>) {
-                    final id = s['sportsId'] ?? s['id'];
-                    if (id == widget.event.sportId)
-                      return (s['sportsName'] ??
-                          s['name'] ??
-                          widget.event.category) as String;
-                  } else {
-                    try {
-                      final id = (s as dynamic).sportsId ?? (s as dynamic).id;
-                      if (id == widget.event.sportId)
-                        return ((s as dynamic).sportsName ??
-                            (s as dynamic).name ??
-                            widget.event.category) as String;
-                    } catch (_) {}
-                  }
-                }
-              } catch (_) {}
-            }
-            return widget.event.category;
-          },
-          orElse: () => widget.event.category,
-        );
-        return GlobalAppBar(
+  Widget _buildHeader(
+    BuildContext context,
+    MatchTournamentModel matchTournament,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GlobalAppBar(
           title: widget.event.title,
           titleFontSize: AppResponsive.s(context, 20),
-          subtitle: sportName,
+          subtitle: widget.event.category,
           subtitleFontSize: AppResponsive.s(context, 16),
           showBackButton: true,
           showDivider: true,
-        );
-      },
+        ),
+        // if (matchTournament.tournamentSponsorsList.isNotEmpty)
+        //   _MatchSponsorsSection(matchTournament: matchTournament),
+      ],
     );
   }
 
@@ -265,7 +249,7 @@ class _MatchDetailsPageState extends ConsumerState<MatchDetailsPage>
 
         if (registration != null) {
           final tournamentAsync =
-              ref.watch(tournamentByIdProvider(registration.tournamentId));
+              ref.watch(tournamentDetailsProvider(registration.tournamentId));
           return tournamentAsync.when(
             data: (tournament) {
               final matchTournament = tournament != null
@@ -322,6 +306,7 @@ class _MatchDetailsPageState extends ConsumerState<MatchDetailsPage>
       scoringStructure: 'Standard scoring',
       equipmentRequired: 'Equipment as per tournament requirements',
       rules: ['Tournament rules will be provided by the organizer'],
+      tournamentSponsorsList: const [],
     );
   }
 
@@ -335,7 +320,8 @@ class _MatchDetailsPageState extends ConsumerState<MatchDetailsPage>
         children: [
           Column(
             children: [
-              SafeArea(bottom: false, child: _buildHeader(context)),
+              SafeArea(
+                  bottom: false, child: _buildHeader(context, matchTournament)),
               _buildMatchCard(context),
               _buildTabBar(context),
               Expanded(
@@ -850,6 +836,245 @@ class _SectionWithIconInline extends StatelessWidget {
                 fontSize: AppResponsive.font(context, 14),
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF000000))),
+      ],
+    );
+  }
+}
+
+/// Sponsors Section Widget
+class _MatchSponsorsSection extends ConsumerWidget {
+  const _MatchSponsorsSection({
+    required this.matchTournament,
+  });
+
+  final MatchTournamentModel matchTournament;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sponsorsData = matchTournament.tournamentSponsorsList;
+
+    if (kDebugMode) {
+      print('👁️ [_MatchSponsorsSection] Building sponsors section');
+      print('   Tournament: ${matchTournament.event.title}');
+      print('   Sponsors count: ${sponsorsData.length}');
+      print('   Sponsors data: $sponsorsData');
+    }
+
+    if (sponsorsData.isEmpty) {
+      if (kDebugMode) {
+        print('   ❌ No sponsors - returning empty SizedBox');
+      }
+      return const SizedBox(height: 0, width: double.infinity);
+    }
+
+    return _SponsorsAutoScrollSection(sponsorsData: sponsorsData);
+  }
+}
+
+class _SponsorsAutoScrollSection extends ConsumerStatefulWidget {
+  const _SponsorsAutoScrollSection({required this.sponsorsData});
+
+  final List<dynamic> sponsorsData;
+
+  @override
+  ConsumerState<_SponsorsAutoScrollSection> createState() =>
+      _SponsorsAutoScrollSectionState();
+}
+
+class _SponsorsAutoScrollSectionState
+    extends ConsumerState<_SponsorsAutoScrollSection> {
+  late PageController _pageController;
+  Timer? _timer;
+  double _itemWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    int initialPage = 10000;
+    if (widget.sponsorsData.isNotEmpty) {
+      initialPage = 10000 - (10000 % widget.sponsorsData.length);
+    }
+
+    _pageController = PageController(
+      viewportFraction: 1 / 3,
+      initialPage: initialPage,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double availableWidth = screenWidth - AppResponsive.s(context, 40);
+    _itemWidth = availableWidth / 3;
+
+    if (widget.sponsorsData.length > 3 && _timer == null) {
+      _startAutoScroll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoScroll() {
+    const duration = Duration(seconds: 3);
+    _timer = Timer.periodic(duration, (timer) {
+      if (_pageController.hasClients) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          vertical: AppResponsive.s(context, 12),
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+        ),
+        child: widget.sponsorsData.length <= 3
+            ? SizedBox(
+                height: AppResponsive.s(context, 95),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: widget.sponsorsData.map((sponsor) {
+                    final dataSource =
+                        ref.read(tournamentsRemoteDataSourceProvider);
+                    final imageUrl =
+                        dataSource.getSponsorImageUrl(sponsor['imageFile']);
+
+                    return SizedBox(
+                      width: _itemWidth,
+                      child: Center(
+                        child: _SponsorTile(
+                          imageUrl: imageUrl,
+                          sponsorName: sponsor['name'] ?? '',
+                          sponsorType: sponsor['sponsorType'] ?? '',
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              )
+            : SizedBox(
+                height: AppResponsive.s(context, 95),
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemBuilder: (context, index) {
+                    final sponsor =
+                        widget.sponsorsData[index % widget.sponsorsData.length];
+                    final dataSource =
+                        ref.read(tournamentsRemoteDataSourceProvider);
+                    final imageUrl =
+                        dataSource.getSponsorImageUrl(sponsor['imageFile']);
+
+                    return Center(
+                      child: _SponsorTile(
+                        imageUrl: imageUrl,
+                        sponsorName: sponsor['name'] ?? '',
+                        sponsorType: sponsor['sponsorType'] ?? '',
+                      ),
+                    );
+                  },
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _SponsorTile extends StatelessWidget {
+  const _SponsorTile({
+    required this.imageUrl,
+    required this.sponsorName,
+    required this.sponsorType,
+  });
+
+  final String imageUrl;
+  final String sponsorName;
+  final String sponsorType;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: AppResponsive.s(context, 60),
+          height: AppResponsive.s(context, 40),
+          decoration: BoxDecoration(
+            borderRadius: AppResponsive.borderRadius(context, 8),
+          ),
+          child: imageUrl.isEmpty
+              ? const Icon(
+                  Icons.business,
+                  color: Colors.white,
+                  size: 18,
+                )
+              : CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  placeholder: (context, url) => const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => const Icon(
+                    Icons.business,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+        ),
+        AppResponsive.verticalSpace(context, 5),
+        Text(
+          sponsorName.isNotEmpty
+              ? sponsorName[0].toUpperCase() +
+                  sponsorName.substring(1).toLowerCase()
+              : '',
+          style: TextStyle(
+            fontSize: AppResponsive.font(context, 13),
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.normal,
+            color: const Color(0xFF5C5C5C),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          sponsorType.isNotEmpty
+              ? "(${sponsorType[0].toUpperCase()}${sponsorType.substring(1).toLowerCase()})"
+              : '',
+          style: TextStyle(
+            fontSize: AppResponsive.font(context, 13),
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.normal,
+            color: AppColors.accentBlue,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }

@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
@@ -19,7 +22,6 @@ import '../../data/models/tournament_registration_model.dart';
 import '../providers/my_tournament_providers.dart';
 import '../../../home/data/models/tournament_model.dart';
 import '../../../home/presentation/providers/tournaments_providers.dart';
-import '../../../auth/presentation/providers/onboarding_providers.dart';
 
 DateTime? _parseApiDate(String dateStr) {
   if (dateStr.isEmpty) return null;
@@ -75,6 +77,9 @@ class RegisteredTournamentModel {
   final String scoringStructure;
   final String equipmentRequired;
   final List<String> rules;
+  final List<dynamic> tournamentSponsorsList;
+  final int currentRegistered;
+  final int maximumRegistrationsCount;
 
   const RegisteredTournamentModel({
     required this.event,
@@ -95,6 +100,9 @@ class RegisteredTournamentModel {
     required this.scoringStructure,
     required this.equipmentRequired,
     required this.rules,
+    required this.tournamentSponsorsList,
+    required this.currentRegistered,
+    required this.maximumRegistrationsCount,
   });
 
   factory RegisteredTournamentModel.fromTournament({
@@ -156,6 +164,9 @@ class RegisteredTournamentModel {
       equipmentRequired:
           'Equipment as per ${tournament.sport} tournament requirements',
       rules: parsedRules,
+      tournamentSponsorsList: tournament.tournamentSponsorsList,
+      currentRegistered: tournament.currentRegistered,
+      maximumRegistrationsCount: tournament.maximumRegistrationsCount,
     );
   }
 }
@@ -286,7 +297,10 @@ class _RegisteredTournamentDetailPageState
     super.dispose();
   }
 
-  Widget _buildCollapsibleHeader(BuildContext context) {
+  Widget _buildCollapsibleHeader(
+    BuildContext context,
+    RegisteredTournamentModel registeredTournament,
+  ) {
     final statusBarHeight = MediaQuery.of(context).padding.top;
     _maxHeaderHeight = AppResponsive.sh(context, 300);
 
@@ -411,7 +425,7 @@ class _RegisteredTournamentDetailPageState
   @override
   Widget build(BuildContext context) {
     final tournamentAsync =
-        ref.watch(tournamentByIdProvider(widget.registration.tournamentId));
+        ref.watch(tournamentDetailsProvider(widget.registration.tournamentId));
 
     return tournamentAsync.when(
       data: (tournament) {
@@ -488,6 +502,9 @@ class _RegisteredTournamentDetailPageState
       equipmentRequired:
           'Equipment as per ${widget.registration.tournamentSport ?? 'tournament'} requirements',
       rules: ['Tournament rules will be provided by the organizer'],
+      tournamentSponsorsList: const [],
+      currentRegistered: widget.event.registeredCount,
+      maximumRegistrationsCount: widget.event.maxParticipants,
     );
   }
 
@@ -516,7 +533,14 @@ class _RegisteredTournamentDetailPageState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildCollapsibleHeader(context),
+                _buildCollapsibleHeader(context, registeredTournament),
+                // if (registeredTournament.tournamentSponsorsList.isNotEmpty)
+                //   Container(
+                //     color: Colors.white,
+                //     child: _RegisteredSponsorsSection(
+                //       registeredTournament: registeredTournament,
+                //     ),
+                //   ),
                 _buildTabBar(context),
               ],
             ),
@@ -615,51 +639,18 @@ class _HeroImageSection extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Consumer(
-                  builder: (context, ref, child) {
-                    final sportsAsync = ref.watch(sportsListProvider);
-                    final sportName = sportsAsync.maybeWhen(
-                      data: (sports) {
-                        if (event.sportId != null) {
-                          try {
-                            for (final s in sports) {
-                              if (s is Map<String, dynamic>) {
-                                final id = s['sportsId'] ?? s['id'];
-                                if (id == event.sportId)
-                                  return (s['sportsName'] ??
-                                      s['name'] ??
-                                      event.category) as String;
-                              } else {
-                                try {
-                                  final id = (s as dynamic).sportsId ??
-                                      (s as dynamic).id;
-                                  if (id == event.sportId)
-                                    return ((s as dynamic).sportsName ??
-                                        (s as dynamic).name ??
-                                        event.category) as String;
-                                } catch (_) {}
-                              }
-                            }
-                          } catch (_) {}
-                        }
-                        return event.category;
-                      },
-                      orElse: () => event.category,
-                    );
-                    return Container(
-                      padding: AppResponsive.paddingSymmetric(context,
-                          horizontal: 14, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: AppResponsive.borderRadius(context, 16),
-                      ),
-                      child: Text(sportName,
-                          style: TextStyle(
-                              fontSize: AppResponsive.font(context, 12),
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white)),
-                    );
-                  },
+                Container(
+                  padding: AppResponsive.paddingSymmetric(context,
+                      horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: AppResponsive.borderRadius(context, 16),
+                  ),
+                  child: Text(event.category,
+                      style: TextStyle(
+                          fontSize: AppResponsive.font(context, 12),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white)),
                 ),
                 AppResponsive.verticalSpace(context, 10),
                 Text(event.title,
@@ -849,8 +840,7 @@ class _TournamentDetailsTab extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _TournamentInfoContainer(
-                  registeredTournament: registeredTournament,
-                  enrolledPlayersCount: players.length),
+                  registeredTournament: registeredTournament),
               SizedBox(height: AppResponsive.s(context, 20)),
               SectionCard(
                 child: Column(
@@ -936,9 +926,7 @@ class _TournamentDetailsTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _TournamentInfoContainer(
-                registeredTournament: registeredTournament,
-                enrolledPlayersCount:
-                    registeredTournament.event.registeredCount),
+                registeredTournament: registeredTournament),
             SizedBox(height: AppResponsive.s(context, 20)),
             SectionCard(
               child: Column(
@@ -964,16 +952,15 @@ class _TournamentDetailsTab extends ConsumerWidget {
 }
 
 class _TournamentInfoContainer extends StatelessWidget {
-  const _TournamentInfoContainer(
-      {required this.registeredTournament, required this.enrolledPlayersCount});
+  const _TournamentInfoContainer({required this.registeredTournament});
 
   final RegisteredTournamentModel registeredTournament;
-  final int enrolledPlayersCount;
 
   @override
   Widget build(BuildContext context) {
-    final progress = registeredTournament.event.maxParticipants > 0
-        ? enrolledPlayersCount / registeredTournament.event.maxParticipants
+    final progress = registeredTournament.maximumRegistrationsCount > 0
+        ? registeredTournament.currentRegistered /
+            registeredTournament.maximumRegistrationsCount
         : 0.0;
 
     return SectionCard(
@@ -1022,7 +1009,7 @@ class _TournamentInfoContainer extends StatelessWidget {
                             color: AppColors.textSecondaryLight)),
                     SizedBox(height: AppResponsive.s(context, 4)),
                     Text(
-                      '$enrolledPlayersCount/${registeredTournament.event.maxParticipants} Players',
+                      '${registeredTournament.currentRegistered}/${registeredTournament.maximumRegistrationsCount} Players Registered',
                       style: TextStyle(
                           fontFamily: 'SFProRounded',
                           fontSize: AppResponsive.font(context, 16),
@@ -1138,6 +1125,245 @@ class _SectionWithIconInline extends StatelessWidget {
                 fontSize: AppResponsive.font(context, 14),
                 fontWeight: FontWeight.w700,
                 color: const Color(0xFF000000))),
+      ],
+    );
+  }
+}
+
+/// Sponsors Section Widget
+class _RegisteredSponsorsSection extends ConsumerWidget {
+  const _RegisteredSponsorsSection({
+    required this.registeredTournament,
+  });
+
+  final RegisteredTournamentModel registeredTournament;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sponsorsData = registeredTournament.tournamentSponsorsList;
+
+    if (kDebugMode) {
+      print('👁️ [_RegisteredSponsorsSection] Building sponsors section');
+      print('   Tournament: ${registeredTournament.event.title}');
+      print('   Sponsors count: ${sponsorsData.length}');
+      print('   Sponsors data: $sponsorsData');
+    }
+
+    if (sponsorsData.isEmpty) {
+      if (kDebugMode) {
+        print('   ❌ No sponsors - returning empty SizedBox');
+      }
+      return const SizedBox(height: 0, width: double.infinity);
+    }
+
+    return _SponsorsAutoScrollSection(sponsorsData: sponsorsData);
+  }
+}
+
+class _SponsorsAutoScrollSection extends ConsumerStatefulWidget {
+  const _SponsorsAutoScrollSection({required this.sponsorsData});
+
+  final List<dynamic> sponsorsData;
+
+  @override
+  ConsumerState<_SponsorsAutoScrollSection> createState() =>
+      _SponsorsAutoScrollSectionState();
+}
+
+class _SponsorsAutoScrollSectionState
+    extends ConsumerState<_SponsorsAutoScrollSection> {
+  late PageController _pageController;
+  Timer? _timer;
+  double _itemWidth = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    int initialPage = 10000;
+    if (widget.sponsorsData.isNotEmpty) {
+      initialPage = 10000 - (10000 % widget.sponsorsData.length);
+    }
+
+    _pageController = PageController(
+      viewportFraction: 1 / 3,
+      initialPage: initialPage,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final double availableWidth = screenWidth - AppResponsive.s(context, 40);
+    _itemWidth = availableWidth / 3;
+
+    if (widget.sponsorsData.length > 3 && _timer == null) {
+      _startAutoScroll();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoScroll() {
+    const duration = Duration(seconds: 3);
+    _timer = Timer.periodic(duration, (timer) {
+      if (_pageController.hasClients) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          vertical: AppResponsive.s(context, 12),
+        ),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+        ),
+        child: widget.sponsorsData.length <= 3
+            ? SizedBox(
+                height: AppResponsive.s(context, 95),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: widget.sponsorsData.map((sponsor) {
+                    final dataSource =
+                        ref.read(tournamentsRemoteDataSourceProvider);
+                    final imageUrl =
+                        dataSource.getSponsorImageUrl(sponsor['imageFile']);
+
+                    return SizedBox(
+                      width: _itemWidth,
+                      child: Center(
+                        child: _SponsorTile(
+                          imageUrl: imageUrl,
+                          sponsorName: sponsor['name'] ?? '',
+                          sponsorType: sponsor['sponsorType'] ?? '',
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              )
+            : SizedBox(
+                height: AppResponsive.s(context, 95),
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemBuilder: (context, index) {
+                    final sponsor =
+                        widget.sponsorsData[index % widget.sponsorsData.length];
+                    final dataSource =
+                        ref.read(tournamentsRemoteDataSourceProvider);
+                    final imageUrl =
+                        dataSource.getSponsorImageUrl(sponsor['imageFile']);
+
+                    return Center(
+                      child: _SponsorTile(
+                        imageUrl: imageUrl,
+                        sponsorName: sponsor['name'] ?? '',
+                        sponsorType: sponsor['sponsorType'] ?? '',
+                      ),
+                    );
+                  },
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _SponsorTile extends StatelessWidget {
+  const _SponsorTile({
+    required this.imageUrl,
+    required this.sponsorName,
+    required this.sponsorType,
+  });
+
+  final String imageUrl;
+  final String sponsorName;
+  final String sponsorType;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: AppResponsive.s(context, 60),
+          height: AppResponsive.s(context, 40),
+          decoration: BoxDecoration(
+            borderRadius: AppResponsive.borderRadius(context, 8),
+          ),
+          child: imageUrl.isEmpty
+              ? const Icon(
+                  Icons.business,
+                  color: Colors.white,
+                  size: 18,
+                )
+              : CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.center,
+                  placeholder: (context, url) => const Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => const Icon(
+                    Icons.business,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
+        ),
+        AppResponsive.verticalSpace(context, 5),
+        Text(
+          sponsorName.isNotEmpty
+              ? sponsorName[0].toUpperCase() +
+                  sponsorName.substring(1).toLowerCase()
+              : '',
+          style: TextStyle(
+            fontSize: AppResponsive.font(context, 13),
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.normal,
+            color: const Color(0xFF5C5C5C),
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        Text(
+          sponsorType.isNotEmpty
+              ? "(${sponsorType[0].toUpperCase()}${sponsorType.substring(1).toLowerCase()})"
+              : '',
+          style: TextStyle(
+            fontSize: AppResponsive.font(context, 13),
+            fontWeight: FontWeight.w500,
+            fontStyle: FontStyle.normal,
+            color: AppColors.accentBlue,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }

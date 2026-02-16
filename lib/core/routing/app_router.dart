@@ -19,7 +19,6 @@ import '../../features/my_tournament/data/models/tournament_registration_model.d
 import '../../features/my_tournament/presentation/pages/player_profile_screen.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/tournament_detail_page.dart';
-import '../../features/home/data/models/tournament_model.dart';
 import '../../core/widgets/event_card.dart';
 import 'route_guard.dart';
 
@@ -103,9 +102,9 @@ class AppRouter {
       case changePassword:
         return MaterialPageRoute(builder: (_) => const ChangePasswordPage());
       case tournamentDetail:
-        final tournament = settings.arguments as TournamentModel;
+        final tournamentId = settings.arguments as int;
         return MaterialPageRoute(
-          builder: (_) => TournamentDetailPage(tournament: tournament),
+          builder: (_) => TournamentDetailPage(tournamentId: tournamentId),
         );
       case paymentStatus:
         if (settings.arguments is PaymentStatus) {
