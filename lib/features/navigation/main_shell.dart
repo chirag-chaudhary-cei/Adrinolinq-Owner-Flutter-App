@@ -82,7 +82,7 @@ class _HomeTab extends StatelessWidget {
       child: Scaffold(
         backgroundColor: AppColors.backgroundLight,
         body: SafeArea(
-          child: HomeContent(onNavigateToProfile: () => onNavigateToTab(3)),
+          child: HomeContent(onNavigateToProfile: () => onNavigateToTab(4)),
         ),
       ),
     );

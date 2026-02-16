@@ -2,6 +2,7 @@ import '../datasources/tournaments_remote_data_source.dart';
 import '../models/tournament_model.dart';
 import '../models/team_model.dart';
 import '../models/team_player_model.dart';
+import '../../../teams/data/models/manager_team_model.dart';
 
 /// Tournaments repository - handles data operations for tournaments
 /// Implements offline-first strategy: returns cached data first, then refreshes from API
@@ -25,6 +26,11 @@ class TournamentsRepository {
     return _remoteDataSource.hasCachedTournaments();
   }
 
+  /// Get my tournaments list (tournaments I'm registered for)
+  Future<List<TournamentModel>> getMyTournamentsList() async {
+    return await _remoteDataSource.getMyTournamentsList();
+  }
+
   /// Get tournament by ID (from API with caching)
   Future<TournamentModel?> getTournamentById(int tournamentId) async {
     return await _remoteDataSource.getTournamentById(tournamentId);
@@ -43,6 +49,11 @@ class TournamentsRepository {
   /// Get cached teams list immediately
   List<TeamModel>? getCachedTeamsList(int tournamentId) {
     return _remoteDataSource.getCachedTeamsList(tournamentId);
+  }
+
+  /// Get manager teams list (all teams owned by logged-in manager)
+  Future<List<ManagerTeamModel>> getManagerTeamsList() async {
+    return await _remoteDataSource.getManagerTeamsList();
   }
 
   /// Get team players list for a specific team

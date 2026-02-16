@@ -10,8 +10,9 @@ import '../../../../core/widgets/event_card.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/routing/app_router.dart';
 import '../providers/my_tournament_providers.dart';
-import '../../data/models/tournament_registration_model.dart';
 import '../../../home/presentation/providers/tournaments_providers.dart';
+import '../../../home/data/models/tournament_model.dart';
+import '../../data/models/tournament_registration_model.dart';
 
 /// Parse date from API format (DD-MM-YYYY HH:MM:SS)
 DateTime? _parseApiDate(String dateStr) {
@@ -42,56 +43,72 @@ String _formatTime(String dateStr) {
   return DateFormat('hh:mm a').format(date);
 }
 
-/// Convert registration + tournament to EventModel for UI
+/// Convert TournamentModel to TournamentRegistrationModel
+TournamentRegistrationModel _convertToRegistrationModel(
+  TournamentModel tournament,
+) {
+  return TournamentRegistrationModel(
+    id: tournament.id,
+    creationTimestamp:
+        tournament.creationTimestamp ?? DateTime.now().toString(),
+    playerUserId: 0, // Not available in simplified API
+    tournamentId: tournament.id,
+    deleted: false,
+    status: true,
+    tournamentName: tournament.name,
+    tournamentDate: tournament.tournamentDate,
+    tournamentEndDate: tournament.tournamentEndDate,
+    tournamentImageFile: tournament.imageFile,
+    tournamentSportId: tournament.sportId,
+    tournamentSport: tournament.sport,
+    tournamentFeesAmount: tournament.feesAmount.toDouble(),
+    tournamentCountry: tournament.country,
+    tournamentState: tournament.state,
+    tournamentDistrict: tournament.district,
+    tournamentCity: tournament.city,
+    tournamentMaxRegistrations: tournament.maximumRegistrationsCount,
+    registrationStatus: 'Registered',
+    paymentStatus: 'Paid',
+  );
+}
+
+/// Convert tournament to EventModel for UI
 EventModel _convertToEventModel({
-  required TournamentRegistrationModel registration,
+  required TournamentModel tournament,
   required String imageUrl,
-  String? tournamentName,
-  String? tournamentSport,
-  int? tournamentSportId,
-  String? tournamentDate,
-  String? city,
-  String? state,
-  double? feesAmount,
-  int? maxRegistrations,
-  int? registeredCount,
-  bool? openOrClose,
-  String? inviteCode,
-  String? community,
+  required int registeredCount,
 }) {
   final locationParts = [
-    if (city != null && city.isNotEmpty) city,
-    if (state != null && state.isNotEmpty) state,
+    if (tournament.city != null && tournament.city!.isNotEmpty)
+      tournament.city!,
+    if (tournament.state != null && tournament.state!.isNotEmpty)
+      tournament.state!,
   ];
   final location =
       locationParts.isNotEmpty ? locationParts.join(', ') : 'Location TBA';
 
   return EventModel(
-    id: registration.tournamentId.toString(),
-    title: tournamentName ?? registration.tournamentName ?? 'Tournament',
-    category: tournamentSport ?? registration.tournamentSport ?? 'Sport',
-    sportId: tournamentSportId ?? registration.tournamentSportId,
+    id: tournament.id.toString(),
+    title: tournament.name ?? 'Tournament',
+    category: tournament.sport ?? 'Sport',
+    sportId: tournament.sportId,
     location: location,
-    date: tournamentDate != null
-        ? _formatDate(tournamentDate)
-        : _formatDate(registration.creationTimestamp),
-    time: tournamentDate != null
-        ? _formatTime(tournamentDate)
-        : _formatTime(registration.creationTimestamp),
-    price: (feesAmount ?? registration.tournamentFeesAmount ?? 0)
-        .toStringAsFixed(0),
+    date: tournament.tournamentDate != null
+        ? _formatDate(tournament.tournamentDate!)
+        : 'Date TBA',
+    time: tournament.tournamentDate != null
+        ? _formatTime(tournament.tournamentDate!)
+        : '',
+    price: (tournament.feesAmount ?? 0).toStringAsFixed(0),
     imageUrl: imageUrl.isNotEmpty ? imageUrl : 'assets/images/demo1.jpg',
-    tags: [tournamentSport ?? registration.tournamentSport ?? 'Sport'],
-    registeredCount: registeredCount ?? 0,
-    maxParticipants:
-        (maxRegistrations ?? registration.tournamentMaxRegistrations ?? 100),
-    openOrClose: openOrClose ?? true,
-    inviteCode: inviteCode ?? registration.inviteCode,
-    registrationStatus: registration.registrationStatus ?? 'Registered',
-    paymentStatus: registration.paymentStatusId == 1
-        ? 'Paid'
-        : (registration.paymentStatus ?? 'Pending'),
-    community: community ?? '',
+    tags: [tournament.sport ?? 'Sport'],
+    registeredCount: registeredCount,
+    maxParticipants: tournament.maximumRegistrationsCount ?? 100,
+    openOrClose: tournament.openOrClose ?? true,
+    inviteCode: tournament.inviteCode,
+    registrationStatus: 'Registered',
+    paymentStatus: 'Paid',
+    community: tournament.community ?? '',
   );
 }
 
@@ -108,7 +125,7 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
 
   @override
   Widget build(BuildContext context) {
-    final registrationsAsync = ref.watch(myTournamentRegistrationsProvider);
+    final tournamentsAsync = ref.watch(myTournamentsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceLight,
@@ -134,13 +151,13 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
             ),
             SizedBox(height: AppResponsive.s(context, 16)),
             Expanded(
-              child: registrationsAsync.when(
-                data: (registrations) {
-                  if (registrations.isEmpty) {
+              child: tournamentsAsync.when(
+                data: (tournaments) {
+                  if (tournaments.isEmpty) {
                     return RefreshIndicator(
                       color: AppColors.accentBlue,
                       onRefresh: () async {
-                        ref.invalidate(myTournamentRegistrationsProvider);
+                        ref.invalidate(myTournamentsProvider);
                       },
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -191,21 +208,21 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                     );
                   }
 
-                  final filteredRegistrations = _searchQuery.isEmpty
-                      ? registrations
-                      : registrations.where((reg) {
-                          final tournamentId = reg.tournamentId.toString();
-                          final name = reg.tournamentName ?? '';
+                  final filteredTournaments = _searchQuery.isEmpty
+                      ? tournaments
+                      : tournaments.where((tournament) {
+                          final tournamentId = tournament.id.toString();
+                          final name = tournament.name ?? '';
                           final searchLower = _searchQuery.toLowerCase();
                           return tournamentId.contains(searchLower) ||
                               name.toLowerCase().contains(searchLower);
                         }).toList();
 
-                  if (filteredRegistrations.isEmpty) {
+                  if (filteredTournaments.isEmpty) {
                     return RefreshIndicator(
                       color: AppColors.accentBlue,
                       onRefresh: () async {
-                        ref.invalidate(myTournamentRegistrationsProvider);
+                        ref.invalidate(myTournamentsProvider);
                       },
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -247,10 +264,11 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                     );
                   }
 
+                  // Display tournaments directly
                   return RefreshIndicator(
                     color: AppColors.accentBlue,
                     onRefresh: () async {
-                      ref.invalidate(myTournamentRegistrationsProvider);
+                      ref.invalidate(myTournamentsProvider);
                     },
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(
@@ -261,15 +279,15 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                         horizontal: 20,
                         bottom: 20,
                       ),
-                      itemCount: filteredRegistrations.length,
+                      itemCount: filteredTournaments.length,
                       itemBuilder: (context, index) {
-                        final registration = filteredRegistrations[index];
+                        final tournament = filteredTournaments[index];
                         return Padding(
                           padding: EdgeInsets.only(
                             bottom: AppResponsive.s(context, 16),
                           ),
                           child: _TournamentCard(
-                            registration: registration,
+                            tournament: tournament,
                           ),
                         );
                       },
@@ -284,7 +302,7 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                 error: (error, stack) => RefreshIndicator(
                   color: AppColors.accentBlue,
                   onRefresh: () async {
-                    ref.invalidate(myTournamentRegistrationsProvider);
+                    ref.invalidate(myTournamentsProvider);
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -325,7 +343,7 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
                               ElevatedButton.icon(
                                 onPressed: () {
                                   ref.invalidate(
-                                    myTournamentRegistrationsProvider,
+                                    myTournamentsProvider,
                                   );
                                 },
                                 icon: const Icon(Icons.refresh),
@@ -355,71 +373,30 @@ class _MyTournamentPageState extends ConsumerState<MyTournamentPage> {
   }
 }
 
-/// Tournament Card Widget - Fetches tournament details for proper display
+/// Tournament Card Widget - Displays tournament card
 class _TournamentCard extends ConsumerWidget {
-  const _TournamentCard({required this.registration});
+  const _TournamentCard({
+    required this.tournament,
+  });
 
-  final TournamentRegistrationModel registration;
+  final TournamentModel tournament;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final tournamentAsync =
-        ref.watch(tournamentByIdProvider(registration.tournamentId));
+    final dataSource = ref.read(tournamentsRemoteDataSourceProvider);
+    final imageUrl = dataSource.getTournamentImageUrl(tournament.imageFile);
 
-    return tournamentAsync.when(
-      data: (tournament) {
-        if (tournament == null) {
-          return _buildBasicCard(context, ref);
-        }
-
-        final dataSource = ref.read(myTournamentRemoteDataSourceProvider);
-        final imageUrl = dataSource.getTournamentImageUrl(tournament.imageFile);
-
-        final enrolledPlayersAsync =
-            ref.watch(enrolledPlayersProvider(registration.tournamentId));
-        final registeredCount = enrolledPlayersAsync.maybeWhen(
-          data: (players) => players.length,
-          orElse: () => 0,
-        );
-
-        final event = _convertToEventModel(
-          registration: registration,
-          imageUrl: imageUrl,
-          tournamentName: tournament.name,
-          tournamentSport: tournament.sport,
-          tournamentSportId: tournament.sportId,
-          tournamentDate: tournament.tournamentDate,
-          city: tournament.city,
-          state: tournament.state,
-          feesAmount: tournament.feesAmount,
-          maxRegistrations: tournament.maximumRegistrationsCount,
-          registeredCount: registeredCount,
-          openOrClose: tournament.openOrClose,
-          inviteCode: tournament.inviteCode,
-          community: tournament.community,
-        );
-
-        return EventCard(
-          event: event,
-          onTap: () => _navigateToDetails(context, event),
-          onViewDetails: () => _navigateToDetails(context, event),
-        );
-      },
-      loading: () => _buildLoadingCard(context, ref),
-      error: (_, __) => _buildBasicCard(context, ref),
+    final enrolledPlayersAsync =
+        ref.watch(enrolledPlayersProvider(tournament.id));
+    final registeredCount = enrolledPlayersAsync.maybeWhen(
+      data: (players) => players.length,
+      orElse: () => 0,
     );
-  }
-
-  Widget _buildBasicCard(BuildContext context, WidgetRef ref) {
-    final dataSource = ref.read(myTournamentRemoteDataSourceProvider);
-    final imageUrl = dataSource.getTournamentImageUrl(null);
 
     final event = _convertToEventModel(
-      registration: registration,
+      tournament: tournament,
       imageUrl: imageUrl,
-      tournamentSportId: registration.tournamentSportId,
-      openOrClose: registration.inviteCode != null ? false : true,
-      inviteCode: registration.inviteCode,
+      registeredCount: registeredCount,
     );
 
     return EventCard(
@@ -429,16 +406,8 @@ class _TournamentCard extends ConsumerWidget {
     );
   }
 
-  Widget _buildLoadingCard(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: AppResponsive.s(context, 200),
-      child: Center(
-        child: AppLoading.circular(color: AppColors.accentBlue),
-      ),
-    );
-  }
-
   void _navigateToDetails(BuildContext context, EventModel event) {
+    final registration = _convertToRegistrationModel(tournament);
     Navigator.pushNamed(
       context,
       AppRouter.registeredTournamentDetail,

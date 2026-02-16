@@ -16,6 +16,7 @@ import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/generic_form_dialog.dart';
 import '../../../../core/widgets/app_text_field_with_label.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 import '../../data/models/tournament_model.dart';
 import '../providers/tournaments_providers.dart';
 import 'create_team_page.dart';
@@ -85,6 +86,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   bool? _canRegister;
   bool _isLoading = true;
   bool _isRegistrationClosed = false;
+  int? _selectedTeamId;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -294,6 +296,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                           final result = await dataSource
                               .saveTournamentRegistrationWithInviteCode(
                             tournamentId: widget.tournament.id,
+                            teamId: _selectedTeamId!,
                             inviteCode: inputCode,
                           );
 
@@ -466,10 +469,60 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     );
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
+    if (_selectedTeamId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a team first'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (_canRegister == true) {
-      _showCreateTeamDialog();
+      // Open registration - directly register the selected team
+      AppLoading.showDialog(
+        context,
+        message: 'Registering team...',
+      );
+
+      try {
+        final dataSource = ref.read(tournamentsRemoteDataSourceProvider);
+        final result = await dataSource.saveTournamentRegistrations(
+          teamId: _selectedTeamId!,
+          tournamentId: widget.tournament.id,
+        );
+
+        if (kDebugMode) {
+          print('🔍 [Registration] API result: $result');
+        }
+
+        if (!mounted) return;
+        AppLoading.dismissDialog(context);
+
+        ref.invalidate(myTournamentsProvider);
+
+        await AppDialogs.showSuccess(
+          context,
+          title: 'Registration Successful!',
+          message:
+              'Your team has been registered for ${widget.tournament.name}.',
+        );
+
+        if (!mounted) return;
+        Navigator.of(context).pop();
+      } catch (e) {
+        if (mounted) {
+          AppLoading.dismissDialog(context);
+          AppDialogs.showError(
+            context,
+            message: e.toString().replaceAll('Exception: ', ''),
+          );
+        }
+      }
     } else {
+      // Invite-only registration - show invite code dialog
       _showInviteCodeDialog();
     }
   }
@@ -661,11 +714,26 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                               ],
                             ),
                           )
-                        : AppButton(
-                            text: _canRegister == true
-                                ? "Register Now • INR${widget.tournament.feesAmount.toStringAsFixed(0)}"
-                                : "Submit Invite Code",
-                            onPressed: _handleRegister,
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _TeamSelectionDropdown(
+                                selectedTeamId: _selectedTeamId,
+                                onTeamSelected: (teamId) {
+                                  setState(() {
+                                    _selectedTeamId = teamId;
+                                  });
+                                },
+                                onCreateTeam: _showCreateTeamDialog,
+                              ),
+                              SizedBox(height: AppResponsive.s(context, 12)),
+                              AppButton(
+                                text: _canRegister == true
+                                    ? "Register Now • INR${widget.tournament.feesAmount.toStringAsFixed(0)}"
+                                    : "Submit Invite Code",
+                                onPressed: _handleRegister,
+                              ),
+                            ],
                           ),
               ),
             ),
@@ -1553,6 +1621,172 @@ class _SponsorTile extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+}
+
+/// Team Selection Dropdown Widget
+class _TeamSelectionDropdown extends ConsumerWidget {
+  const _TeamSelectionDropdown({
+    required this.selectedTeamId,
+    required this.onTeamSelected,
+    required this.onCreateTeam,
+  });
+
+  final int? selectedTeamId;
+  final ValueChanged<int?> onTeamSelected;
+  final VoidCallback onCreateTeam;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final teamsAsync = ref.watch(managerTeamsListProvider);
+
+    return teamsAsync.when(
+      data: (teams) {
+        // Filter out deleted teams and only show active ones
+        final activeTeams =
+            teams.where((team) => !team.deleted && team.status).toList();
+
+        if (activeTeams.isEmpty) {
+          return Container(
+            padding: AppResponsive.padding(context, all: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: AppResponsive.borderRadius(context, 16),
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: AppColors.accentBlue,
+                  size: AppResponsive.icon(context, 20),
+                ),
+                SizedBox(width: AppResponsive.s(context, 12)),
+                Expanded(
+                  child: Text(
+                    'No teams available. Create a team first.',
+                    style: TextStyle(
+                      fontFamily: 'SFProRounded',
+                      fontSize: AppResponsive.font(context, 14),
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onCreateTeam,
+                  child: Text(
+                    'Create',
+                    style: TextStyle(
+                      fontFamily: 'SFProRounded',
+                      fontSize: AppResponsive.font(context, 14),
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.accentBlue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Find the selected team from the list
+        final selectedTeam = selectedTeamId != null
+            ? activeTeams.firstWhere(
+                (team) => team.id == selectedTeamId,
+                orElse: () => activeTeams.first,
+              )
+            : null;
+
+        return AppDropdown(
+          label: 'Select Team',
+          hint: 'Select a Team',
+          items: activeTeams,
+          value: selectedTeam,
+          onChanged: (team) => onTeamSelected(team?.id),
+          itemLabel: (team) => team.name,
+          prefixIcon: Icons.groups_outlined,
+          enabled: true,
+        );
+      },
+      loading: () => Container(
+        padding: AppResponsive.padding(context, all: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: AppResponsive.borderRadius(context, 16),
+          border: Border.all(
+            color: Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: AppResponsive.s(context, 20),
+              height: AppResponsive.s(context, 20),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentBlue),
+              ),
+            ),
+            SizedBox(width: AppResponsive.s(context, 12)),
+            Text(
+              'Loading teams...',
+              style: TextStyle(
+                fontFamily: 'SFProRounded',
+                fontSize: AppResponsive.font(context, 14),
+                color: Colors.grey.shade700,
+              ),
+            ),
+          ],
+        ),
+      ),
+      error: (error, stack) => Container(
+        padding: AppResponsive.padding(context, all: 16),
+        decoration: BoxDecoration(
+          color: Colors.red.shade50,
+          borderRadius: AppResponsive.borderRadius(context, 16),
+          border: Border.all(
+            color: Colors.red.shade300,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red.shade700,
+              size: AppResponsive.icon(context, 20),
+            ),
+            SizedBox(width: AppResponsive.s(context, 12)),
+            Expanded(
+              child: Text(
+                'Failed to load teams',
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 14),
+                  color: Colors.red.shade700,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: onCreateTeam,
+              child: Text(
+                'Create',
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 14),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.accentBlue,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

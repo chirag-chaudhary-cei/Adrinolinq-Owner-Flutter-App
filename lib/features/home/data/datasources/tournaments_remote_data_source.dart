@@ -7,6 +7,7 @@ import '../../../../core/network/connectivity_service.dart';
 import '../models/tournament_model.dart';
 import '../models/team_model.dart';
 import '../models/team_player_model.dart';
+import '../../../teams/data/models/manager_team_model.dart';
 
 /// Tournaments remote data source - handles all API calls for tournaments
 /// Implements offline-first caching strategy with Hive
@@ -163,6 +164,67 @@ class TournamentsRemoteDataSource {
     return _cache.hasTournamentsList();
   }
 
+  /// Get my tournaments list (tournaments I'm registered for) with offline-first caching
+  Future<List<TournamentModel>> getMyTournamentsList() async {
+    try {
+      if (kDebugMode) {
+        print('🔍 [TournamentsDS] Fetching my tournaments list...');
+      }
+
+      final payload = {
+        'status': true,
+        'deleted': false,
+        'enrollmentType': 1,
+        'myTournaments': true,
+      };
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getTournamentsList,
+        data: payload,
+      );
+
+      _validateResponse(response, 'Failed to fetch my tournaments list');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'] as List<dynamic>?;
+
+      if (obj == null || obj.isEmpty) {
+        if (kDebugMode) {
+          print('⚠️ [TournamentsDS] No registered tournaments found');
+        }
+        return [];
+      }
+
+      final filtered = obj.where((item) {
+        final itemMap = item as Map<String, dynamic>;
+        final status = itemMap['status'] as bool? ?? false;
+        final deleted = itemMap['deleted'] as bool? ?? false;
+        return status && !deleted;
+      }).toList();
+
+      final tournaments = filtered
+          .map((item) => TournamentModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      if (kDebugMode) {
+        print(
+            '✅ [TournamentsDS] Found ${tournaments.length} registered tournaments');
+      }
+
+      return tournaments;
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print('❌ [TournamentsDS] DioException: ${_handleError(e)}');
+      }
+      throw Exception(_handleError(e));
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [TournamentsDS] Error: $e');
+      }
+      throw Exception('Failed to fetch my tournaments list: $e');
+    }
+  }
+
   Future<TournamentModel?> getTournamentById(int tournamentId) async {
     try {
       if (kDebugMode) {
@@ -283,8 +345,8 @@ class TournamentsRemoteDataSource {
       }
 
       final response = await _apiClient.post(
-        ApiEndpoints.getTournamentTeamsList,
-        data: {'tournamentId': tournamentId},
+        ApiEndpoints.getTeamsList,
+        data: {},
       );
 
       _validateResponse(response, 'Failed to fetch teams list');
@@ -351,6 +413,60 @@ class TournamentsRemoteDataSource {
       return cachedData.map((e) => TeamModel.fromJson(e)).toList();
     }
     return null;
+  }
+
+  /// Get manager teams list - returns all teams owned by the logged-in manager
+  Future<List<ManagerTeamModel>> getManagerTeamsList() async {
+    try {
+      if (kDebugMode) {
+        print('🔍 [TournamentsDS] Fetching manager teams...');
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getTeamsList,
+        data: {},
+      );
+
+      _validateResponse(response, 'Failed to fetch manager teams list');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'] as List<dynamic>?;
+
+      if (obj == null || obj.isEmpty) {
+        if (kDebugMode) {
+          print('⚠️ [TournamentsDS] No manager teams found');
+        }
+        return [];
+      }
+
+      final filteredObj = obj.where((item) {
+        final itemMap = item as Map<String, dynamic>;
+        final deleted = itemMap['deleted'] as bool? ?? false;
+        final status = itemMap['status'] as bool? ?? true;
+        return !deleted && status;
+      }).toList();
+
+      final teams = filteredObj
+          .map(
+              (item) => ManagerTeamModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      if (kDebugMode) {
+        print('✅ [TournamentsDS] Fetched ${teams.length} manager teams');
+      }
+
+      return teams;
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print('❌ [TournamentsDS] DioException: ${_handleError(e)}');
+      }
+      throw Exception(_handleError(e));
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [TournamentsDS] Error: $e');
+      }
+      throw Exception('Failed to fetch manager teams list: $e');
+    }
   }
 
   Future<List<TeamPlayerModel>> getTeamPlayersList(int teamId) async {
@@ -819,6 +935,7 @@ class TournamentsRemoteDataSource {
 
   Future<Map<String, dynamic>?> saveTournamentRegistrationWithInviteCode({
     required int tournamentId,
+    required int teamId,
     required String inviteCode,
   }) async {
     if (!_connectivity.isConnected) {
@@ -828,6 +945,7 @@ class TournamentsRemoteDataSource {
     try {
       final payload = {
         'tournamentId': tournamentId,
+        'teamId': teamId,
         'inviteCode': inviteCode,
       };
 

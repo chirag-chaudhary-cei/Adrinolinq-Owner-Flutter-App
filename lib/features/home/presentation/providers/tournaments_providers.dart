@@ -9,6 +9,7 @@ import '../../data/models/tournament_model.dart';
 import '../../data/models/team_model.dart';
 import '../../data/models/team_player_model.dart';
 import '../../data/repositories/tournaments_repository.dart';
+import '../../../teams/data/models/manager_team_model.dart';
 
 /// Tournaments remote data source provider
 final tournamentsRemoteDataSourceProvider =
@@ -146,6 +147,20 @@ final refreshableTournamentsProvider =
   return repository.getTournamentsList();
 });
 
+/// My Tournaments provider - fetches tournaments the user is registered for
+final myTournamentsProvider =
+    FutureProvider.autoDispose<List<TournamentModel>>((ref) async {
+  final repository = ref.watch(tournamentsRepositoryProvider);
+  return repository.getMyTournamentsList();
+});
+
+/// Manager Teams provider - fetches all teams owned by the logged-in manager
+final managerTeamsListProvider =
+    FutureProvider.autoDispose<List<ManagerTeamModel>>((ref) async {
+  final repository = ref.watch(tournamentsRepositoryProvider);
+  return repository.getManagerTeamsList();
+});
+
 final teamsListProvider = FutureProvider.autoDispose
     .family<List<TeamModel>, int>((ref, tournamentId) async {
   final repository = ref.watch(tournamentsRepositoryProvider);
@@ -272,6 +287,7 @@ final saveTournamentRegistrationWithInviteCodeProvider = FutureProvider.family
     final dataSource = ref.watch(tournamentsRemoteDataSourceProvider);
     return dataSource.saveTournamentRegistrationWithInviteCode(
       tournamentId: params['tournamentId'] as int,
+      teamId: params['teamId'] as int,
       inviteCode: params['inviteCode'] as String,
     );
   },

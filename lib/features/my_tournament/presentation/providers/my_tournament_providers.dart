@@ -4,6 +4,8 @@ import '../../data/datasources/my_tournament_remote_data_source.dart';
 import '../../data/repositories/my_tournament_repository.dart';
 import '../../data/models/tournament_registration_model.dart';
 import '../../data/models/tournament_team_player_model.dart';
+import '../../../home/presentation/providers/tournaments_providers.dart';
+import '../../../home/data/models/tournament_model.dart';
 
 /// My Tournament remote data source provider
 final myTournamentRemoteDataSourceProvider =
@@ -24,6 +26,34 @@ final myTournamentRegistrationsProvider =
     FutureProvider<List<TournamentRegistrationModel>>((ref) async {
   final repository = ref.watch(myTournamentRepositoryProvider);
   return repository.getTournamentRegistrations();
+});
+
+/// Batch load all tournament details for registered tournaments
+/// This prevents individual loading states for each card
+final myTournamentsDetailsProvider =
+    FutureProvider<Map<int, TournamentModel>>((ref) async {
+  final registrations =
+      await ref.watch(myTournamentRegistrationsProvider.future);
+  final tournamentRepository = ref.watch(tournamentsRepositoryProvider);
+
+  final Map<int, TournamentModel> tournamentsMap = {};
+
+  // Fetch all tournaments in parallel
+  await Future.wait(
+    registrations.map((registration) async {
+      try {
+        final tournament = await tournamentRepository
+            .getTournamentById(registration.tournamentId);
+        if (tournament != null) {
+          tournamentsMap[registration.tournamentId] = tournament;
+        }
+      } catch (e) {
+        // Silently fail for individual tournaments
+      }
+    }),
+  );
+
+  return tournamentsMap;
 });
 
 /// Tournament team players provider - fetches team players for a specific team
