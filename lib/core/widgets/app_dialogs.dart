@@ -118,6 +118,7 @@ class AppDialogs {
     String? title,
     String? confirmText,
     String? cancelText,
+    String? customGifPath,
   }) async {
     return await showDialog<bool>(
       context: context,
@@ -127,6 +128,7 @@ class AppDialogs {
         message: message,
         confirmText: confirmText ?? 'Yes',
         cancelText: cancelText ?? 'Cancel',
+        customGifPath: customGifPath,
       ),
     );
   }
@@ -193,7 +195,7 @@ class _AppDialog extends StatelessWidget {
             children: [
               // Icon
               _buildIcon(context),
-              SizedBox(height: AppResponsive.s(context, 16)),
+              // SizedBox(height: AppResponsive.s(context, 16)),
               // Title
               Text(
                 title,
@@ -205,7 +207,7 @@ class _AppDialog extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: AppResponsive.s(context, 12)),
+              SizedBox(height: AppResponsive.s(context, 5)),
               // Message
               Text(
                 isBulletList ? '• $message' : message,
@@ -366,12 +368,14 @@ class _DeleteConfirmDialog extends StatelessWidget {
     this.message,
     required this.confirmText,
     required this.cancelText,
+    this.customGifPath,
   });
 
   final String title;
   final String? message;
   final String confirmText;
   final String cancelText;
+  final String? customGifPath;
 
   @override
   Widget build(BuildContext context) {
@@ -390,20 +394,31 @@ class _DeleteConfirmDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Red exclamation icon with circle background
-            Container(
-              width: AppResponsive.s(context, 64),
-              height: AppResponsive.s(context, 64),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF4D6A),
-                shape: BoxShape.circle,
+            // Icon or GIF
+            if (customGifPath != null)
+              SizedBox(
+                width: AppResponsive.s(context, 120),
+                height: AppResponsive.s(context, 120),
+                child: Image.asset(
+                  customGifPath!,
+                  fit: BoxFit.contain,
+                ),
+              )
+            else
+              // Red exclamation icon with circle background
+              Container(
+                width: AppResponsive.s(context, 64),
+                height: AppResponsive.s(context, 64),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFF4D6A),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.priority_high_rounded,
+                  size: AppResponsive.icon(context, 36),
+                  color: Colors.white,
+                ),
               ),
-              child: Icon(
-                Icons.priority_high_rounded,
-                size: AppResponsive.icon(context, 36),
-                color: Colors.white,
-              ),
-            ),
             SizedBox(height: AppResponsive.s(context, 20)),
             // Title
             Text(

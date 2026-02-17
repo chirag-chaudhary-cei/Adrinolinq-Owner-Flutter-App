@@ -61,6 +61,7 @@ class ApiEndpoints {
   static const String getTeamPlayersList =
       '/api/TeamPlayers/getTeamPlayersList';
   static const String saveTeamPlayers = '/api/TeamPlayers/saveTeamPlayers';
+  static const String deleteTeamPlayers = '/api/TeamPlayers/deleteTeamPlayers';
 
   // File Upload
   static const String uploadUserFile = '/api/FileUpload/UploadUserFile';

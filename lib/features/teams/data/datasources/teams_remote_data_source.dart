@@ -9,6 +9,8 @@ import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/manager_team_model.dart';
 import '../models/save_team_request.dart';
+import '../models/team_player_model.dart';
+import '../models/save_team_player_request.dart';
 
 /// Remote data source for Teams API
 class TeamsRemoteDataSource {
@@ -242,6 +244,168 @@ class TeamsRemoteDataSource {
       return '';
     }
     return '${_apiClient.baseUrl}${ApiEndpoints.teamUploads}$imageFile';
+  }
+
+  /// Get player image URL
+  String getPlayerImageUrl(String? imageFile) {
+    if (imageFile == null || imageFile.isEmpty) {
+      return '';
+    }
+    return '${_apiClient.baseUrl}${ApiEndpoints.usersUploads}$imageFile';
+  }
+
+  /// Get list of players in a team
+  Future<List<TeamPlayerModel>> getTeamPlayersList(int teamId) async {
+    try {
+      print('🔍 [TeamsDS] Fetching team players for team ID: $teamId');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getTeamPlayersList,
+        data: {'teamId': teamId},
+      );
+
+      _validateResponse(response, 'Failed to fetch team players');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'];
+
+      if (obj == null) {
+        print('⚠️ [TeamsDS] No players data in response');
+        return [];
+      }
+
+      final List<dynamic> playersList;
+      if (obj is List) {
+        playersList = obj;
+      } else if (obj is Map<String, dynamic>) {
+        playersList = [obj];
+      } else {
+        print('⚠️ [TeamsDS] Unexpected obj type: ${obj.runtimeType}');
+        return [];
+      }
+
+      // Filter out deleted players
+      final filteredList = playersList
+          .where((item) => item is Map<String, dynamic>)
+          .cast<Map<String, dynamic>>()
+          .where((item) => item['deleted'] != true)
+          .toList();
+
+      final players =
+          filteredList.map((json) => TeamPlayerModel.fromJson(json)).toList();
+
+      print('✅ [TeamsDS] Fetched ${players.length} players for team $teamId');
+
+      return players;
+    } on DioException catch (e) {
+      print('❌ [TeamsDS] DioException: ${e.message}');
+      throw Exception('Failed to fetch team players: ${e.message}');
+    } catch (e) {
+      print('❌ [TeamsDS] Error fetching team players: $e');
+      throw Exception('Failed to fetch team players: $e');
+    }
+  }
+
+  /// Add a player to a team
+  Future<void> saveTeamPlayers(SaveTeamPlayerRequest player) async {
+    try {
+      print('📤 [TeamsDS] Saving team player...');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.saveTeamPlayers,
+        data: player.toJson(),
+      );
+
+      _validateResponse(response, 'Failed to save team player');
+
+      print('✅ [TeamsDS] Team player saved successfully');
+
+      AppLogger.success(
+        'Saved team player',
+        'TeamsDataSource',
+      );
+    } on DioException catch (e) {
+      print('❌ [TeamsDS] DioException: ${e.message}');
+      throw Exception('Failed to save team player: ${e.message}');
+    } catch (e) {
+      print('❌ [TeamsDS] Error saving team player: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a player from a team
+  Future<void> deleteTeamPlayers(int playerId) async {
+    try {
+      print('🗑️ [TeamsDS] Deleting team player ID: $playerId...');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.deleteTeamPlayers,
+        data: {'id': playerId},
+      );
+
+      _validateResponse(response, 'Failed to delete team player');
+
+      print('✅ [TeamsDS] Team player deleted successfully');
+
+      AppLogger.success(
+        'Deleted team player',
+        'TeamsDataSource',
+      );
+    } on DioException catch (e) {
+      print('❌ [TeamsDS] DioException: ${e.message}');
+      throw Exception('Failed to delete team player: ${e.message}');
+    } catch (e) {
+      print('❌ [TeamsDS] Error deleting team player: $e');
+      rethrow;
+    }
+  }
+
+  /// Get sport roles list for a specific sport
+  Future<List<Map<String, dynamic>>> getSportRolesList(int sportId) async {
+    try {
+      print('🔍 [TeamsDS] Fetching sport roles for sport ID: $sportId');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getSportRolesList,
+        data: {'sportId': sportId},
+      );
+
+      _validateResponse(response, 'Failed to fetch sport roles');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'];
+
+      if (obj == null) {
+        print('⚠️ [TeamsDS] No sport roles data in response');
+        return [];
+      }
+
+      final List<dynamic> rolesList;
+      if (obj is List) {
+        rolesList = obj;
+      } else if (obj is Map<String, dynamic>) {
+        rolesList = [obj];
+      } else {
+        print('⚠️ [TeamsDS] Unexpected obj type: ${obj.runtimeType}');
+        return [];
+      }
+
+      final roles = rolesList
+          .where((item) => item is Map<String, dynamic>)
+          .cast<Map<String, dynamic>>()
+          .where((item) => item['deleted'] != true)
+          .toList();
+
+      print('✅ [TeamsDS] Fetched ${roles.length} sport roles');
+
+      return roles;
+    } on DioException catch (e) {
+      print('❌ [TeamsDS] DioException: ${e.message}');
+      throw Exception('Failed to fetch sport roles: ${e.message}');
+    } catch (e) {
+      print('❌ [TeamsDS] Error fetching sport roles: $e');
+      throw Exception('Failed to fetch sport roles: $e');
+    }
   }
 
   /// Validate API response
