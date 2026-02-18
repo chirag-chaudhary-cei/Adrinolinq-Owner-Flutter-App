@@ -416,6 +416,7 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   'Select Players',
@@ -425,6 +426,8 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: AppResponsive.s(context, 2)),
                 Text(
@@ -435,20 +438,29 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
                     fontWeight: FontWeight.w400,
                     color: AppColors.accentBlue,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
+          SizedBox(width: AppResponsive.s(context, 12)),
           // Add Button
           GestureDetector(
             onTap: _showAddPlayerDialog,
-            child: Text(
-              '+ Add',
-              style: TextStyle(
-                fontFamily: 'SFProRounded',
-                fontSize: AppResponsive.font(context, 16),
-                fontWeight: FontWeight.w600,
-                color: AppColors.accentBlue,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppResponsive.s(context, 8),
+                vertical: AppResponsive.s(context, 4),
+              ),
+              child: Text(
+                '+ Add',
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 16),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.accentBlue,
+                ),
               ),
             ),
           ),

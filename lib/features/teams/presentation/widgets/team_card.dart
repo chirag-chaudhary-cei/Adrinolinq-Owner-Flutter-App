@@ -158,7 +158,7 @@ class TeamCard extends ConsumerWidget {
                   ),
                 );
               },
-              width: AppResponsive.s(context, 90),
+              width: AppResponsive.s(context, 91),
               height: AppResponsive.s(context, 36),
               fontSize: AppResponsive.font(context, 13),
             ),

@@ -199,7 +199,7 @@ class PlayerCard extends ConsumerWidget {
           child: Divider(
             height: 1,
             thickness: 1,
-            color: Color(0xFF0A1217).withOpacity(0.25),
+            color: const Color(0xFF0A1217).withOpacity(0.25),
           ),
         ),
       ],

@@ -204,9 +204,9 @@ class _RegisteredTournamentDetailPageState
   late TabController _tabController;
   bool _showPriceBreakup = false;
 
-  final ScrollController _yourDetailsScrollController = ScrollController();
   final ScrollController _tournamentDetailsScrollController =
       ScrollController();
+  final ScrollController _myTeamScrollController = ScrollController();
 
   double _headerOffset = 0.0;
   double _maxHeaderHeight = 300.0;
@@ -224,8 +224,8 @@ class _RegisteredTournamentDetailPageState
 
     final wasCollapsed = _headerOffset >= 0.5;
     final newController = _tabController.index == 0
-        ? _yourDetailsScrollController
-        : _tournamentDetailsScrollController;
+        ? _tournamentDetailsScrollController
+        : _myTeamScrollController;
 
     _lastTabIndex = _tabController.index;
 
@@ -244,16 +244,16 @@ class _RegisteredTournamentDetailPageState
     setState(() {});
   }
 
-  void _onYourDetailsScroll() {
-    if (!_yourDetailsScrollController.hasClients) return;
-    if (_tabController.index != 0) return;
-    _updateHeaderOffset(_yourDetailsScrollController);
-  }
-
   void _onTournamentDetailsScroll() {
     if (!_tournamentDetailsScrollController.hasClients) return;
-    if (_tabController.index != 1) return;
+    if (_tabController.index != 0) return;
     _updateHeaderOffset(_tournamentDetailsScrollController);
+  }
+
+  void _onMyTeamScroll() {
+    if (!_myTeamScrollController.hasClients) return;
+    if (_tabController.index != 1) return;
+    _updateHeaderOffset(_myTeamScrollController);
   }
 
   void _updateHeaderOffset(ScrollController controller) {
@@ -271,8 +271,8 @@ class _RegisteredTournamentDetailPageState
     _tabController = TabController(length: 2, vsync: this);
     _lastTabIndex = _tabController.index;
     _tabController.addListener(_handleTabChange);
-    _yourDetailsScrollController.addListener(_onYourDetailsScroll);
     _tournamentDetailsScrollController.addListener(_onTournamentDetailsScroll);
+    _myTeamScrollController.addListener(_onMyTeamScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SystemChrome.setSystemUIOverlayStyle(
@@ -289,11 +289,11 @@ class _RegisteredTournamentDetailPageState
   void dispose() {
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
-    _yourDetailsScrollController.removeListener(_onYourDetailsScroll);
-    _yourDetailsScrollController.dispose();
     _tournamentDetailsScrollController
         .removeListener(_onTournamentDetailsScroll);
     _tournamentDetailsScrollController.dispose();
+    _myTeamScrollController.removeListener(_onMyTeamScroll);
+    _myTeamScrollController.dispose();
     super.dispose();
   }
 
@@ -371,29 +371,24 @@ class _RegisteredTournamentDetailPageState
   Widget _buildTabBar(BuildContext context) {
     return AppTabBar(
       tabController: _tabController,
-      tabs: const ['Your Details', 'Tournament Details'],
+      tabs: const ['Tournament Details', 'My Team'],
     );
   }
 
-  Widget _buildYourDetailsTabContent(
+  Widget _buildMyTeamTabContent(
     BuildContext context,
     RegisteredTournamentModel registeredTournament,
   ) {
     return SingleChildScrollView(
-      key: const PageStorageKey('your_details_scroll'),
-      controller: _yourDetailsScrollController,
+      key: const PageStorageKey('my_team_scroll'),
+      controller: _myTeamScrollController,
       physics: const ClampingScrollPhysics(),
       padding: EdgeInsets.only(top: _expandedTotalHeight),
       child: Column(
         children: [
-          _YourDetailsTab(
+          _MyTeamTab(
             registration: widget.registration,
             tournamentId: widget.registration.tournamentId,
-            showPriceBreakup: _showPriceBreakup,
-            onTogglePriceBreakup: () {
-              setState(() => _showPriceBreakup = !_showPriceBreakup);
-            },
-            isInviteOnly: !widget.event.openOrClose,
           ),
           SizedBox(height: AppResponsive.sh(context, 100)),
         ],
@@ -414,7 +409,13 @@ class _RegisteredTournamentDetailPageState
         children: [
           _TournamentDetailsTab(
             registeredTournament: registeredTournament,
+            registration: widget.registration,
             tournamentId: widget.registration.tournamentId,
+            showPriceBreakup: _showPriceBreakup,
+            onTogglePriceBreakup: () {
+              setState(() => _showPriceBreakup = !_showPriceBreakup);
+            },
+            isInviteOnly: !widget.event.openOrClose,
           ),
           SizedBox(height: AppResponsive.sh(context, 100)),
         ],
@@ -520,9 +521,9 @@ class _RegisteredTournamentDetailPageState
             child: IndexedStack(
               index: _tabController.index,
               children: [
-                _buildYourDetailsTabContent(context, registeredTournament),
                 _buildTournamentDetailsTabContent(
                     context, registeredTournament),
+                _buildMyTeamTabContent(context, registeredTournament),
               ],
             ),
           ),
@@ -707,8 +708,64 @@ class _HeroImageSection extends ConsumerWidget {
   }
 }
 
-class _YourDetailsTab extends ConsumerWidget {
-  const _YourDetailsTab({
+class _MyTeamTab extends ConsumerWidget {
+  const _MyTeamTab({
+    required this.registration,
+    required this.tournamentId,
+  });
+
+  final TournamentRegistrationModel registration;
+  final int tournamentId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Padding(
+      padding: AppResponsive.padding(context, horizontal: 20, top: 20),
+      child: SectionCard(
+        child: Center(
+          child: Padding(
+            padding: AppResponsive.padding(context, all: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.people_outline,
+                  size: AppResponsive.s(context, 64),
+                  color: Colors.grey.shade300,
+                ),
+                SizedBox(height: AppResponsive.s(context, 20)),
+                Text(
+                  'Team Members',
+                  style: TextStyle(
+                    fontFamily: 'SFProRounded',
+                    fontSize: AppResponsive.font(context, 18),
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A1A1A),
+                  ),
+                ),
+                SizedBox(height: AppResponsive.s(context, 8)),
+                Text(
+                  'Yet to assign',
+                  style: TextStyle(
+                    fontFamily: 'SFProRounded',
+                    fontSize: AppResponsive.font(context, 14),
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TournamentDetailsTab extends ConsumerWidget {
+  const _TournamentDetailsTab({
+    required this.registeredTournament,
     required this.registration,
     required this.tournamentId,
     required this.showPriceBreakup,
@@ -716,6 +773,7 @@ class _YourDetailsTab extends ConsumerWidget {
     this.isInviteOnly = false,
   });
 
+  final RegisteredTournamentModel registeredTournament;
   final TournamentRegistrationModel registration;
   final int tournamentId;
   final bool showPriceBreakup;
@@ -733,6 +791,7 @@ class _YourDetailsTab extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Registration Info Card
           SectionCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,194 +817,145 @@ class _YourDetailsTab extends ConsumerWidget {
             ),
           ),
           SizedBox(height: AppResponsive.s(context, 16)),
-          enrolledPlayersAsync.when(
-            data: (players) {
-              final uniquePlayers = <String, Map<String, dynamic>>{};
-              for (final player in players) {
-                final id = player['id']?.toString() ?? '';
-                if (id.isNotEmpty && !uniquePlayers.containsKey(id))
-                  uniquePlayers[id] = player;
-              }
-              final filteredPlayers = uniquePlayers.values.toList();
-              if (filteredPlayers.isEmpty) return const SizedBox.shrink();
-              final enrolledDisplayList = filteredPlayers
-                  .map(
-                    (player) => TeammateDisplayModel(
-                      id: player['id']?.toString() ?? '',
-                      name: _constructPlayerName(player),
-                      role: null,
-                      avatarUrl: player['imageFile'] != null &&
-                              player['imageFile'].toString().isNotEmpty
-                          ? '${apiClient.baseUrl}${ApiEndpoints.usersUploads}${player['imageFile']}'
-                          : null,
-                    ),
-                  )
-                  .toList();
-              return Column(
-                children: [
-                  TeammatesSection(
-                      title: 'Enrolled Players',
-                      playerCount: filteredPlayers.length,
-                      teammates: enrolledDisplayList,
-                      maxVisibleTeammates: 6,
-                      showCheckIcon: false),
-                  SizedBox(height: AppResponsive.s(context, 16)),
-                ],
-              );
-            },
-            loading: () => Padding(
-                padding: AppResponsive.padding(context, vertical: 20),
-                child: Center(
-                    child: AppLoading.circular(color: AppColors.accentBlue))),
-            error: (error, stack) => Padding(
-              padding: AppResponsive.padding(context, vertical: 20),
-              child: Center(
-                  child: Text('Failed to load enrolled players',
-                      style: TextStyle(
-                          fontFamily: 'SFProRounded',
-                          fontSize: AppResponsive.font(context, 14),
-                          color: Colors.grey.shade600))),
+          // Tournament Info Container
+          _TournamentInfoContainer(registeredTournament: registeredTournament),
+          SizedBox(height: AppResponsive.s(context, 16)),
+          // // Enrolled Players Section
+          // enrolledPlayersAsync.when(
+          //   data: (players) {
+          //     final uniquePlayers = <String, Map<String, dynamic>>{};
+          //     for (final player in players) {
+          //       final id = player['id']?.toString() ?? '';
+          //       if (id.isNotEmpty && !uniquePlayers.containsKey(id))
+          //         uniquePlayers[id] = player;
+          //     }
+          //     final filteredPlayers = uniquePlayers.values.toList();
+          //     if (filteredPlayers.isEmpty) return const SizedBox.shrink();
+          //     final enrolledDisplayList = filteredPlayers
+          //         .map(
+          //           (player) => TeammateDisplayModel(
+          //             id: player['id']?.toString() ?? '',
+          //             name: _constructPlayerName(player),
+          //             role: null,
+          //             avatarUrl: player['imageFile'] != null &&
+          //                     player['imageFile'].toString().isNotEmpty
+          //                 ? '${apiClient.baseUrl}${ApiEndpoints.usersUploads}${player['imageFile']}'
+          //                 : null,
+          //           ),
+          //         )
+          //         .toList();
+          //     return Column(
+          //       children: [
+          //         TeammatesSection(
+          //             title: 'Enrolled Players',
+          //             playerCount: filteredPlayers.length,
+          //             teammates: enrolledDisplayList,
+          //             maxVisibleTeammates: 6,
+          //             showCheckIcon: false),
+          //         SizedBox(height: AppResponsive.s(context, 16)),
+          //       ],
+          //     );
+          //   },
+          //   loading: () => Padding(
+          //       padding: AppResponsive.padding(context, vertical: 20),
+          //       child: Center(
+          //           child: AppLoading.circular(color: AppColors.accentBlue))),
+          //   error: (error, stack) => Padding(
+          //     padding: AppResponsive.padding(context, vertical: 20),
+          //     child: Center(
+          //         child: Text('Failed to load enrolled players',
+          //             style: TextStyle(
+          //                 fontFamily: 'SFProRounded',
+          //                 fontSize: AppResponsive.font(context, 14),
+          //                 color: Colors.grey.shade600))),
+          //   ),
+          // ),
+          // About Event
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'ABOUT EVENT'),
+                SizedBox(height: AppResponsive.s(context, 10)),
+                Text(registeredTournament.aboutEvent,
+                    style: TextStyle(
+                        fontFamily: 'SFProRounded',
+                        fontSize: AppResponsive.font(context, 14),
+                        fontWeight: FontWeight.w400,
+                        height: 1.5,
+                        color: const Color(0xFF5C5C5C))),
+              ],
             ),
           ),
-          if (!isInviteOnly)
+          SizedBox(height: AppResponsive.s(context, 16)),
+          // Scoring Structure
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SectionWithIconInline(
+                    icon: AppAssets.trophyIcon,
+                    iconColor: Color(0xFFFFF8E1),
+                    title: 'SCORING STRUCTURE'),
+                SizedBox(height: AppResponsive.s(context, 12)),
+                Text(registeredTournament.scoringStructure,
+                    style: TextStyle(
+                        fontFamily: 'SFProRounded',
+                        fontSize: AppResponsive.font(context, 14),
+                        height: 1.5,
+                        color: const Color(0xFF424242))),
+              ],
+            ),
+          ),
+          SizedBox(height: AppResponsive.s(context, 16)),
+          // Equipment Required
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _SectionWithIconInline(
+                    icon: Icons.description_outlined,
+                    iconColor: Color(0xFFE3F2FD),
+                    title: 'EQUIPMENT REQUIRED'),
+                SizedBox(height: AppResponsive.s(context, 12)),
+                Text(registeredTournament.equipmentRequired,
+                    style: TextStyle(
+                        fontFamily: 'SFProRounded',
+                        fontSize: AppResponsive.font(context, 14),
+                        height: 1.5,
+                        color: const Color(0xFF424242))),
+              ],
+            ),
+          ),
+          SizedBox(height: AppResponsive.s(context, 16)),
+          // Rules & Regulations
+          SectionCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SectionHeader(title: 'RULES & REGULATIONS'),
+                SizedBox(height: AppResponsive.s(context, 16)),
+                ...registeredTournament.rules.map(
+                  (rule) => Padding(
+                    padding:
+                        EdgeInsets.only(bottom: AppResponsive.s(context, 14)),
+                    child: RuleItem(text: rule),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Price Section
+          if (!isInviteOnly) ...[
+            SizedBox(height: AppResponsive.s(context, 16)),
             PriceSection(
                 priceWithTax: registration.tournamentFeesAmount ?? 0,
                 serviceFee: 0,
                 totalAmount: registration.tournamentFeesAmount ?? 0,
                 showBreakup: showPriceBreakup,
                 onToggleBreakup: onTogglePriceBreakup),
-        ],
-      ),
-    );
-  }
-}
-
-class _TournamentDetailsTab extends ConsumerWidget {
-  const _TournamentDetailsTab(
-      {required this.registeredTournament, required this.tournamentId});
-
-  final RegisteredTournamentModel registeredTournament;
-  final int tournamentId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final enrolledPlayersAsync =
-        ref.watch(enrolledPlayersProvider(tournamentId));
-
-    return enrolledPlayersAsync.when(
-      data: (players) {
-        return Padding(
-          padding: AppResponsive.padding(context, horizontal: 20, top: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TournamentInfoContainer(
-                  registeredTournament: registeredTournament),
-              SizedBox(height: AppResponsive.s(context, 20)),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SectionHeader(title: 'ABOUT EVENT'),
-                    SizedBox(height: AppResponsive.s(context, 10)),
-                    Text(registeredTournament.aboutEvent,
-                        style: TextStyle(
-                            fontFamily: 'SFProRounded',
-                            fontSize: AppResponsive.font(context, 14),
-                            fontWeight: FontWeight.w400,
-                            height: 1.5,
-                            color: const Color(0xFF5C5C5C))),
-                  ],
-                ),
-              ),
-              SizedBox(height: AppResponsive.s(context, 16)),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionWithIconInline(
-                        icon: AppAssets.trophyIcon,
-                        iconColor: Color(0xFFFFF8E1),
-                        title: 'SCORING STRUCTURE'),
-                    SizedBox(height: AppResponsive.s(context, 12)),
-                    Text(registeredTournament.scoringStructure,
-                        style: TextStyle(
-                            fontFamily: 'SFProRounded',
-                            fontSize: AppResponsive.font(context, 14),
-                            height: 1.5,
-                            color: const Color(0xFF424242))),
-                  ],
-                ),
-              ),
-              SizedBox(height: AppResponsive.s(context, 16)),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const _SectionWithIconInline(
-                        icon: Icons.description_outlined,
-                        iconColor: Color(0xFFE3F2FD),
-                        title: 'EQUIPMENT REQUIRED'),
-                    SizedBox(height: AppResponsive.s(context, 12)),
-                    Text(registeredTournament.equipmentRequired,
-                        style: TextStyle(
-                            fontFamily: 'SFProRounded',
-                            fontSize: AppResponsive.font(context, 14),
-                            height: 1.5,
-                            color: const Color(0xFF424242))),
-                  ],
-                ),
-              ),
-              SizedBox(height: AppResponsive.s(context, 16)),
-              SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SectionHeader(title: 'RULES & REGULATIONS'),
-                    SizedBox(height: AppResponsive.s(context, 16)),
-                    ...registeredTournament.rules.map(
-                      (rule) => Padding(
-                        padding: EdgeInsets.only(
-                            bottom: AppResponsive.s(context, 14)),
-                        child: RuleItem(text: rule),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => Padding(
-          padding: AppResponsive.padding(context, horizontal: 20, top: 20),
-          child: const Center(child: CircularProgressIndicator())),
-      error: (error, stack) => Padding(
-        padding: AppResponsive.padding(context, horizontal: 20, top: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _TournamentInfoContainer(
-                registeredTournament: registeredTournament),
-            SizedBox(height: AppResponsive.s(context, 20)),
-            SectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SectionHeader(title: 'ABOUT EVENT'),
-                  SizedBox(height: AppResponsive.s(context, 10)),
-                  Text(registeredTournament.aboutEvent,
-                      style: TextStyle(
-                          fontFamily: 'SFProRounded',
-                          fontSize: AppResponsive.font(context, 14),
-                          fontWeight: FontWeight.w400,
-                          height: 1.5,
-                          color: const Color(0xFF5C5C5C))),
-                ],
-              ),
-            ),
           ],
-        ),
+        ],
       ),
     );
   }
