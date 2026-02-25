@@ -59,12 +59,14 @@ class OTPResponse extends Equatable {
     this.message,
     this.responseCode,
     this.token,
+    this.roleTypeIds,
   });
 
   final bool success;
   final String? message;
   final String? responseCode;
   final String? token;
+  final String? roleTypeIds;
 
   factory OTPResponse.fromJson(Map<String, dynamic> json) {
     final responseCode = json['response_code'] as String?;
@@ -77,9 +79,11 @@ class OTPResponse extends Equatable {
       message: message,
       responseCode: responseCode,
       token: json['token'] as String?,
+      roleTypeIds: json['roleTypeIds'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [success, message, responseCode, token];
+  List<Object?> get props =>
+      [success, message, responseCode, token, roleTypeIds];
 }

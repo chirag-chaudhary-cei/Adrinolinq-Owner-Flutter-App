@@ -108,11 +108,21 @@ class AuthRemoteDataSource {
           await _apiClient.post(ApiEndpoints.register, data: request.toJson());
       _validateResponse(response, 'Registration failed');
 
+      // Extract token and roleTypeIds from response headers (same as login)
       final token = response.headers.value('token');
+      final roleTypeIds = response.headers.value('roletypeids');
       final responseData =
           Map<String, dynamic>.from(response.data as Map<String, dynamic>);
       if (token != null && token.isNotEmpty) {
         responseData['token'] = token;
+        AppLogger.info('Registration token extracted from header: $token',
+            'AuthDataSource');
+      }
+      if (roleTypeIds != null && roleTypeIds.isNotEmpty) {
+        responseData['roleTypeIds'] = roleTypeIds;
+        AppLogger.info(
+            'Registration roleTypeIds extracted from header: $roleTypeIds',
+            'AuthDataSource');
       }
 
       return OTPResponse.fromJson(responseData);

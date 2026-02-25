@@ -165,32 +165,51 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
         title: 'Registration',
       );
 
-      // After successful registration, auto-login and go to onboarding
+      // After successful registration the repo already stored the token.
+      // Skip the separate login call if we’re already authenticated.
       final authRepo = await ref.read(authRepositoryProvider.future);
-      try {
-        await authRepo.login(widget.mobile, generatedPassword);
+      final isAuthenticated = await authRepo.isAuthenticated();
 
-        if (!mounted) return;
+      if (!mounted) return;
+
+      if (isAuthenticated) {
+        // Token was stored by repo.register() — go directly to onboarding
         setState(() => _isLoading = false);
-
         Navigator.of(context).pushNamedAndRemoveUntil(
           AppRouter.onboarding,
           (route) => false,
           arguments: {
             'firstName': widget.firstName,
             'lastName': widget.lastName,
-            // 'email': widget.email,
             'mobile': widget.mobile,
           },
         );
-      } catch (e) {
-        setState(() => _isLoading = false);
-        AppDialogs.showError(
-          context,
-          message:
-              'Registration successful but auto-login failed. Please login manually.',
-        );
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      } else {
+        // Register API didn’t return a token — fall back to login
+        try {
+          await authRepo.login(widget.mobile, generatedPassword);
+
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRouter.onboarding,
+            (route) => false,
+            arguments: {
+              'firstName': widget.firstName,
+              'lastName': widget.lastName,
+              'mobile': widget.mobile,
+            },
+          );
+        } catch (e) {
+          setState(() => _isLoading = false);
+          AppDialogs.showError(
+            context,
+            message:
+                'Registration successful but auto-login failed. Please login manually.',
+          );
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       }
     } else {
       setState(() => _isLoading = false);
