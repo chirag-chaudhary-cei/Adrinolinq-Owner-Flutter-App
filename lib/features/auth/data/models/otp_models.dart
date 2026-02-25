@@ -17,6 +17,23 @@ class GenerateOTPRequest extends Equatable {
   List<Object?> get props => [email, type];
 }
 
+class RegisterOTPRequest extends Equatable {
+  const RegisterOTPRequest({
+    required this.mobile,
+    this.roleId = 5, // Owner
+  });
+
+  final String mobile;
+  final int roleId;
+
+  Map<String, dynamic> toJson() {
+    return {'mobile': mobile, 'roleId': roleId};
+  }
+
+  @override
+  List<Object?> get props => [mobile, roleId];
+}
+
 class VerifyOTPRequest extends Equatable {
   const VerifyOTPRequest({
     required this.email,
@@ -41,11 +58,13 @@ class OTPResponse extends Equatable {
     required this.success,
     this.message,
     this.responseCode,
+    this.token,
   });
 
   final bool success;
   final String? message;
   final String? responseCode;
+  final String? token;
 
   factory OTPResponse.fromJson(Map<String, dynamic> json) {
     final responseCode = json['response_code'] as String?;
@@ -57,9 +76,10 @@ class OTPResponse extends Equatable {
       success: isSuccess,
       message: message,
       responseCode: responseCode,
+      token: json['token'] as String?,
     );
   }
 
   @override
-  List<Object?> get props => [success, message, responseCode];
+  List<Object?> get props => [success, message, responseCode, token];
 }

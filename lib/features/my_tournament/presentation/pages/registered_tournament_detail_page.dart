@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/providers/app_providers.dart';
 import '../../data/models/tournament_registration_model.dart';
+import '../../data/models/my_team_model.dart';
 import '../providers/my_tournament_providers.dart';
 import '../../../home/data/models/tournament_model.dart';
 import '../../../home/presentation/providers/tournaments_providers.dart';
@@ -719,47 +721,355 @@ class _MyTeamTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: AppResponsive.padding(context, horizontal: 20, top: 20),
-      child: SectionCard(
-        child: Center(
-          child: Padding(
-            padding: AppResponsive.padding(context, all: 40),
+    final myTeamAsync = ref.watch(myTeamProvider(tournamentId));
+
+    return myTeamAsync.when(
+      data: (team) {
+        if (team == null) {
+          return _buildNotAllocated(context);
+        }
+        return _buildTeamContent(context, ref, team);
+      },
+      loading: () => Padding(
+        padding: AppResponsive.padding(context, horizontal: 20, top: 40),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.accentBlue),
+        ),
+      ),
+      error: (error, _) => Padding(
+        padding: AppResponsive.padding(context, horizontal: 20, top: 40),
+        child: SectionCard(
+          child: SizedBox(
+            width: double.infinity,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.people_outline,
-                  size: AppResponsive.s(context, 64),
-                  color: Colors.grey.shade300,
-                ),
                 SizedBox(height: AppResponsive.s(context, 20)),
-                Text(
-                  'Team Members',
-                  style: TextStyle(
-                    fontFamily: 'SFProRounded',
-                    fontSize: AppResponsive.font(context, 18),
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1A1A1A),
-                  ),
+                Icon(
+                  Icons.error_outline,
+                  color: Colors.red.shade400,
+                  size: AppResponsive.icon(context, 32),
                 ),
-                SizedBox(height: AppResponsive.s(context, 8)),
+                SizedBox(height: AppResponsive.s(context, 12)),
                 Text(
-                  'Yet to assign',
+                  'Failed to load team',
                   style: TextStyle(
                     fontFamily: 'SFProRounded',
                     fontSize: AppResponsive.font(context, 14),
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey.shade600,
+                    color: AppColors.textSecondaryLight,
                   ),
-                  textAlign: TextAlign.center,
                 ),
+                SizedBox(height: AppResponsive.s(context, 20)),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildNotAllocated(BuildContext context) {
+    return Padding(
+      padding: AppResponsive.padding(context, horizontal: 20, top: 40),
+      child: SectionCard(
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(height: AppResponsive.s(context, 20)),
+              Container(
+                width: AppResponsive.s(context, 64),
+                height: AppResponsive.s(context, 64),
+                decoration: BoxDecoration(
+                  color: AppColors.accentBlue.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.groups_outlined,
+                  color: AppColors.accentBlue,
+                  size: AppResponsive.icon(context, 32),
+                ),
+              ),
+              SizedBox(height: AppResponsive.s(context, 16)),
+              Text(
+                'Team Not Allocated',
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 18),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimaryLight,
+                ),
+              ),
+              SizedBox(height: AppResponsive.s(context, 8)),
+              Text(
+                'Team has not been allocated yet.\nPlease check back later.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 13),
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF9E9E9E),
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: AppResponsive.s(context, 20)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeamContent(
+      BuildContext context, WidgetRef ref, MyTeamModel team) {
+    final activePlayers =
+        team.teamPlayersList.where((p) => !p.deleted).toList();
+    final currentCount = activePlayers.length;
+    final isFull = currentCount >= team.maxTeamSize;
+
+    return Padding(
+      padding: AppResponsive.padding(context, horizontal: 20, top: 20),
+      child: SectionCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  team.name,
+                  style: TextStyle(
+                    fontFamily: 'SFProRounded',
+                    fontSize: AppResponsive.font(context, 18),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimaryLight,
+                  ),
+                ),
+                Container(
+                  padding: AppResponsive.paddingSymmetric(
+                    context,
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isFull
+                        ? Colors.red.shade50
+                        : AppColors.accentBlue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  child: Text(
+                    '$currentCount / ${team.maxTeamSize} Players',
+                    style: TextStyle(
+                      fontFamily: 'SFProRounded',
+                      fontSize: AppResponsive.font(context, 12),
+                      fontWeight: FontWeight.w600,
+                      color:
+                          isFull ? Colors.red.shade600 : AppColors.accentBlue,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (activePlayers.isEmpty) ...[
+              SizedBox(height: AppResponsive.s(context, 16)),
+              Center(
+                child: Text(
+                  'No players in team yet',
+                  style: TextStyle(
+                    fontFamily: 'SFProRounded',
+                    fontSize: AppResponsive.font(context, 14),
+                    color: AppColors.textSecondaryLight,
+                  ),
+                ),
+              ),
+              SizedBox(height: AppResponsive.s(context, 16)),
+            ] else ...[
+              SizedBox(height: AppResponsive.s(context, 16)),
+              ...activePlayers.map(
+                (player) => _TeamPlayerCard(
+                  player: player,
+                  isCaptainPlayer: player.playerUserId == team.captainUserId,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Individual team player card (view-only)
+class _TeamPlayerCard extends ConsumerWidget {
+  const _TeamPlayerCard({
+    required this.player,
+    this.isCaptainPlayer = false,
+  });
+
+  final MyTeamPlayerModel player;
+  final bool isCaptainPlayer;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        Padding(
+          padding: AppResponsive.padding(context, vertical: 12),
+          child: Row(
+            children: [
+              // Avatar
+              Container(
+                width: AppResponsive.s(context, 50),
+                height: AppResponsive.s(context, 50),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.grey.shade200,
+                ),
+                child: ClipOval(child: _buildAvatar(context, ref)),
+              ),
+              SizedBox(width: AppResponsive.s(context, 12)),
+              // Player Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            player.player,
+                            style: TextStyle(
+                              fontFamily: 'SFProRounded',
+                              fontSize: AppResponsive.font(context, 15),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (player.proficiencyLevel != null &&
+                            player.proficiencyLevel!.isNotEmpty) ...[
+                          SizedBox(width: AppResponsive.s(context, 8)),
+                          Container(
+                            padding: AppResponsive.paddingSymmetric(context,
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(50),
+                            ),
+                            child: Text(
+                              player.proficiencyLevel!,
+                              style: TextStyle(
+                                fontFamily: 'SFProRounded',
+                                fontSize: AppResponsive.font(context, 11),
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.accentBlue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: AppResponsive.s(context, 4)),
+                    if (isCaptainPlayer)
+                      Text(
+                        'Captain',
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(context, 13),
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.accentBlue,
+                        ),
+                      )
+                    else
+                      Text(
+                        player.inviteStatusText,
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(context, 13),
+                          fontWeight: FontWeight.w500,
+                          color: _statusColor(player.inviteStatus),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(width: AppResponsive.s(context, 8)),
+              // Status icon
+              if (isCaptainPlayer)
+                Icon(Icons.star,
+                    size: AppResponsive.icon(context, 22),
+                    color: AppColors.accentBlue)
+              else
+                _statusIcon(context, player.inviteStatus),
+            ],
+          ),
+        ),
+        Divider(
+          height: 1,
+          thickness: 1,
+          color: const Color(0xFF0A1217).withOpacity(0.1),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAvatar(BuildContext context, WidgetRef ref) {
+    if (player.imageFile != null && player.imageFile!.isNotEmpty) {
+      final apiClient = ref.watch(apiClientProvider);
+      final imageUrl =
+          '${apiClient.baseUrl}${ApiEndpoints.usersUploads}${player.imageFile}';
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => _placeholder(context),
+        errorWidget: (context, url, error) => _placeholder(context),
+      );
+    }
+    return _placeholder(context);
+  }
+
+  Widget _placeholder(BuildContext context) {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Center(
+        child: Icon(Icons.person,
+            size: AppResponsive.s(context, 24), color: Colors.grey.shade400),
+      ),
+    );
+  }
+
+  Widget _statusIcon(BuildContext context, int? status) {
+    IconData icon;
+    Color color;
+    switch (status) {
+      case 1:
+        icon = Icons.check_circle;
+        color = const Color(0xFF4CAF50);
+        break;
+      case 2:
+        icon = Icons.cancel;
+        color = const Color(0xFFE53935);
+        break;
+      default:
+        icon = Icons.schedule;
+        color = const Color(0xFFFF9800);
+        break;
+    }
+    return Icon(icon, size: AppResponsive.icon(context, 22), color: color);
+  }
+
+  Color _statusColor(int? status) {
+    switch (status) {
+      case 1:
+        return const Color(0xFF4CAF50);
+      case 2:
+        return const Color(0xFFE53935);
+      default:
+        return const Color(0xFFFF9800);
+    }
   }
 }
 

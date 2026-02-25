@@ -310,7 +310,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget _buildPrivacyPolicy(BuildContext context) {
     return Text.rich(
       TextSpan(
-        text: 'Be continuing, you agree to our\n',
+        text: 'By continuing, you agree to our\n',
         style: TextStyle(
           fontFamily: 'SFProRounded',
           fontSize: AppResponsive.font(context, 13),

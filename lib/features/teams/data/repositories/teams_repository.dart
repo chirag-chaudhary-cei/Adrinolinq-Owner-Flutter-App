@@ -74,6 +74,15 @@ class TeamsRepository {
     }
   }
 
+  /// Delete a team
+  Future<void> deleteTeam(int teamId) async {
+    try {
+      return await _remoteDataSource.deleteTeam(teamId);
+    } catch (e) {
+      throw Exception(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   /// Get sport roles list for a specific sport
   Future<List<Map<String, dynamic>>> getSportRolesList(int sportId) async {
     try {

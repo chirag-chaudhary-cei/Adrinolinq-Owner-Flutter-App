@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
 import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/global_app_bar.dart' hide AppSearchBar;
@@ -11,6 +12,7 @@ import '../../data/models/manager_team_model.dart';
 import '../providers/teams_providers.dart';
 import '../widgets/team_card.dart';
 import 'create_team_page.dart';
+import 'team_players_page.dart';
 
 /// Teams Page - View and manage manager-owned teams
 class TeamsPage extends ConsumerStatefulWidget {
@@ -67,8 +69,11 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
                       : teams.where((team) {
                           final name = team.name.toLowerCase();
                           final sport = team.sportName?.toLowerCase() ?? '';
+                          final description =
+                              team.description?.toLowerCase() ?? '';
                           return name.contains(_searchQuery) ||
-                              sport.contains(_searchQuery);
+                              sport.contains(_searchQuery) ||
+                              description.contains(_searchQuery);
                         }).toList();
 
                   if (filteredTeams.isEmpty) {
@@ -143,7 +148,9 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
                         final team = filteredTeams[index];
                         return TeamCard(
                           team: team,
-                          onTap: () => _navigateToEditTeam(team),
+                          onManage: () => _navigateToManageTeam(team),
+                          onEdit: () => _navigateToEditTeam(team),
+                          onDelete: () => _deleteTeam(team),
                         );
                       },
                     ),
@@ -240,6 +247,54 @@ class _TeamsPageState extends ConsumerState<TeamsPage> {
     if (result == true && mounted) {
       // Team was updated, refresh the list
       ref.invalidate(teamsListProvider);
+    }
+  }
+
+  Future<void> _navigateToManageTeam(ManagerTeamModel team) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => TeamPlayersPage(team: team),
+      ),
+    );
+    if (mounted) {
+      ref.invalidate(teamsListProvider);
+      ref.invalidate(teamPlayersProvider(team.id));
+    }
+  }
+
+  Future<void> _deleteTeam(ManagerTeamModel team) async {
+    final confirmed = await AppDialogs.showDeleteConfirmation(
+      context,
+      title: 'Delete Team?',
+      message: 'This will permanently delete "${team.name}".',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    AppDialogs.showLoading(context, message: 'Deleting team...');
+
+    try {
+      final repository = ref.read(teamsRepositoryProvider);
+      await repository.deleteTeam(team.id);
+
+      if (!mounted) return;
+      AppDialogs.dismissLoading(context);
+      await AppDialogs.showSuccess(
+        context,
+        message: 'Team deleted successfully.',
+      );
+
+      ref.invalidate(teamsListProvider);
+      ref.invalidate(teamPlayersProvider(team.id));
+    } catch (e) {
+      if (!mounted) return;
+      AppDialogs.dismissLoading(context);
+      await AppDialogs.showError(
+        context,
+        message: e.toString().replaceFirst('Exception: ', ''),
+      );
     }
   }
 }

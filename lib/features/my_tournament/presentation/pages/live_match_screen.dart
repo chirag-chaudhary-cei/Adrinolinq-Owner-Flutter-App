@@ -10,6 +10,7 @@ import '../../../../core/widgets/match_card.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../home/presentation/providers/tournaments_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../auth/presentation/providers/onboarding_providers.dart';
 
 class PlayerModel {
   final String id;
@@ -23,7 +24,7 @@ class PlayerModel {
       {required this.id,
       required this.name,
       required this.role,
-      this.skillLevel = 'Expert',
+      this.skillLevel = '',
       this.avatarUrl,
       this.email});
 
@@ -31,11 +32,15 @@ class PlayerModel {
     final firstName = json['firstName'] as String? ?? '';
     final lastName = json['lastName'] as String? ?? '';
     final fullName = '$firstName $lastName'.trim();
+    // API may return proficiency as 'proficiencyLevel' or 'proficiency'
+    final skillLevel = json['proficiencyLevel'] as String? ??
+        json['proficiency'] as String? ??
+        '';
     return PlayerModel(
       id: (json['id'] ?? json['userId'] ?? 0).toString(),
       name: fullName.isNotEmpty ? fullName : 'Unknown User',
       role: 'Player',
-      skillLevel: json['proficiency'] as String? ?? 'Intermediate',
+      skillLevel: skillLevel,
       avatarUrl: json['imageFile'] as String?,
       email: json['email'] as String?,
     );
@@ -113,29 +118,108 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
     setState(() => _isLoadingPlayers = true);
     try {
       final dataSource = ref.read(tournamentsRemoteDataSourceProvider);
-      final users = await dataSource.getUsersList(
-          deleted: false, status: true, roleId: 4);
-      final players =
-          users.map((json) => PlayerModel.fromApiJson(json)).toList();
+      final onboardingRepo = ref.read(onboardingRepositoryProvider);
+      final profileRepo = ref.read(profileRepositoryProvider);
 
-      try {
-        final profileRepo = ref.read(profileRepositoryProvider);
-        final currentProfile = await profileRepo.getProfile();
-        final currentUserPlayer = PlayerModel(
-          id: currentProfile.id.toString(),
-          name:
-              '${currentProfile.firstName ?? ''} ${currentProfile.lastName ?? ''}'
-                  .trim(),
+      // ── Step 1: Parallel – users list + proficiency levels + current profile
+      final step1 = await Future.wait([
+        dataSource.getUsersList(deleted: false, status: true, roleId: 4),
+        ref.read(proficiencyLevelsProvider.future),
+        profileRepo.getProfile(),
+      ]);
+
+      final users = step1[0] as List<Map<String, dynamic>>;
+      final proficiencyLevels = step1[1] as List<dynamic>;
+      final currentProfile = step1[2] as dynamic;
+
+      final currentUserId = currentProfile.id.toString();
+      _currentUserId = currentUserId;
+
+      // Helper: resolve integer levelId → display name
+      String levelNameById(int? levelId) {
+        if (levelId == null || levelId == 0) return '';
+        try {
+          final match =
+              proficiencyLevels.firstWhere((l) => (l as dynamic).id == levelId);
+          return (match as dynamic).name as String? ?? '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      // ── Step 2: Extract ordered user IDs (parallel index = prefs index)
+      final userIds = users
+          .map((u) =>
+              int.tryParse((u['id'] ?? u['userId'] ?? 0).toString()) ?? 0)
+          .toList();
+
+      // ── Step 3: Fetch sports preferences for EVERY user in parallel
+      //    Each future is at the same index as the user in [users]
+      final prefsFutures = userIds.map((uid) async {
+        if (uid <= 0) return <Map<String, dynamic>>[];
+        try {
+          return await onboardingRepo.getPlayerSportsPreferencesList(
+              playerUserId: uid);
+        } catch (_) {
+          return <Map<String, dynamic>>[];
+        }
+      }).toList(); // .toList() materialises eager – avoids lazy-eval issues
+
+      final allPrefs = await Future.wait(prefsFutures);
+
+      // ── Step 4: Resolve skill level for a user by its index in [users]
+      final sportId = widget.event.sportId;
+
+      String resolveSkillForIndex(int index) {
+        if (index < 0 || index >= allPrefs.length) return '';
+        final prefs = allPrefs[index];
+        if (prefs.isEmpty) return '';
+        final matched = sportId != null
+            ? prefs.firstWhere(
+                (p) => p['sportId'] == sportId,
+                orElse: () => prefs.first,
+              )
+            : prefs.first;
+        return levelNameById(matched['levelId'] as int?);
+      }
+
+      // ── Step 5: Build PlayerModel list
+      final players = List.generate(users.length, (i) {
+        final json = users[i];
+        final rawName =
+            '${json['firstName'] ?? ''} ${json['lastName'] ?? ''}'.trim();
+        return PlayerModel(
+          id: userIds[i].toString(),
+          name: rawName.isNotEmpty ? rawName : 'Unknown User',
           role: 'Player',
-          skillLevel: 'Expert',
-          avatarUrl: currentProfile.imageFile,
-          email: currentProfile.email,
+          skillLevel: resolveSkillForIndex(i),
+          avatarUrl: json['imageFile'] as String?,
+          email: json['email'] as String?,
         );
-        final currentUserId = currentProfile.id.toString();
-        final isAlreadyInList = players.any((p) => p.id == currentUserId);
-        _currentUserId = currentUserId;
-        if (!isAlreadyInList) players.insert(0, currentUserPlayer);
-      } catch (e) {/* Could not add current user */}
+      });
+
+      // ── Step 6: Replace / insert current user entry with profile data
+      final currentUserIdInt = int.tryParse(currentUserId) ?? 0;
+      final currentUserIndex = userIds.indexOf(currentUserIdInt);
+      final currentUserSkillLevel = resolveSkillForIndex(currentUserIndex);
+
+      final currentUserPlayer = PlayerModel(
+        id: currentUserId,
+        name:
+            '${currentProfile.firstName ?? ''} ${currentProfile.lastName ?? ''}'
+                .trim(),
+        role: 'Player',
+        skillLevel: currentUserSkillLevel,
+        avatarUrl: currentProfile.imageFile as String?,
+        email: currentProfile.email as String?,
+      );
+
+      final existingIndex = players.indexWhere((p) => p.id == currentUserId);
+      if (existingIndex >= 0) {
+        players[existingIndex] = currentUserPlayer;
+      } else {
+        players.insert(0, currentUserPlayer);
+      }
 
       if (mounted)
         setState(() {
@@ -143,6 +227,7 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
           _isLoadingPlayers = false;
         });
     } catch (e) {
+      print('❌ [LiveMatchScreen] Error fetching players: $e');
       if (mounted) setState(() => _isLoadingPlayers = false);
     }
   }
@@ -651,20 +736,21 @@ class _PlayerListItem extends ConsumerWidget {
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimaryLight)),
                       SizedBox(width: AppResponsive.s(context, 8)),
-                      Container(
-                        padding: AppResponsive.paddingSymmetric(context,
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: const Color(0xFFF0F0F0),
-                            borderRadius:
-                                AppResponsive.borderRadius(context, 6)),
-                        child: Text(player.skillLevel,
-                            style: TextStyle(
-                                fontFamily: 'SFProRounded',
-                                fontSize: AppResponsive.font(context, 11),
-                                fontWeight: FontWeight.w500,
-                                color: const Color(0xFF616161))),
-                      ),
+                      if (player.skillLevel.isNotEmpty)
+                        Container(
+                          padding: AppResponsive.paddingSymmetric(context,
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: const Color(0xFFF0F0F0),
+                              borderRadius:
+                                  AppResponsive.borderRadius(context, 6)),
+                          child: Text(player.skillLevel,
+                              style: TextStyle(
+                                  fontFamily: 'SFProRounded',
+                                  fontSize: AppResponsive.font(context, 11),
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF616161))),
+                        ),
                     ],
                   ),
                   SizedBox(height: AppResponsive.s(context, 2)),

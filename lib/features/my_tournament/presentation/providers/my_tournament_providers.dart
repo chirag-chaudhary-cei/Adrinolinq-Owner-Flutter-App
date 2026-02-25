@@ -4,6 +4,7 @@ import '../../data/datasources/my_tournament_remote_data_source.dart';
 import '../../data/repositories/my_tournament_repository.dart';
 import '../../data/models/tournament_registration_model.dart';
 import '../../data/models/tournament_team_player_model.dart';
+import '../../data/models/my_team_model.dart';
 import '../../../home/presentation/providers/tournaments_providers.dart';
 import '../../../home/data/models/tournament_model.dart';
 
@@ -81,4 +82,23 @@ final enrolledPlayersProvider =
         (ref, tournamentId) async {
   final repository = ref.watch(myTournamentRepositoryProvider);
   return repository.getEnrolledPlayers(tournamentId);
+});
+
+/// My Team provider - fetches the team for a tournament (read-only for owner)
+final myTeamProvider =
+    FutureProvider.family<MyTeamModel?, int>((ref, tournamentId) async {
+  final repository = ref.watch(myTournamentRepositoryProvider);
+
+  // Return cached data immediately if available, refresh in background
+  final cached = repository.getCachedMyTeam(tournamentId);
+  if (cached != null) {
+    Future.microtask(() async {
+      try {
+        await repository.getMyTeam(tournamentId);
+      } catch (_) {}
+    });
+    return cached;
+  }
+
+  return repository.getMyTeam(tournamentId);
 });

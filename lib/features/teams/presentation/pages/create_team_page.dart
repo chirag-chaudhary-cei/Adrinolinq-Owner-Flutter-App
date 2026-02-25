@@ -107,11 +107,18 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
                           if (_isEditMode &&
                               _selectedSport == null &&
                               widget.team!.sportId > 0) {
-                            try {
-                              _selectedSport = sports.firstWhere(
-                                (s) => s.sportsId == widget.team!.sportId,
-                              );
-                            } catch (_) {}
+                            final match = sports
+                                .where(
+                                  (s) => s.sportsId == widget.team!.sportId,
+                                )
+                                .firstOrNull;
+                            if (match != null) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  setState(() => _selectedSport = match);
+                                }
+                              });
+                            }
                           }
 
                           return AppDropdownFormField<dynamic>(

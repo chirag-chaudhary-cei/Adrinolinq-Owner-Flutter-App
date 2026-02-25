@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors_new.dart';
@@ -25,7 +24,6 @@ class _RegisterPersonalInfoPageState
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController(text: "");
   final _lastNameController = TextEditingController(text: "");
-  final _emailController = TextEditingController(text: "");
   final _mobileController = TextEditingController(text: "");
 
   bool _isLoading = false;
@@ -34,7 +32,6 @@ class _RegisterPersonalInfoPageState
   void dispose() {
     _firstNameController.dispose();
     _lastNameController.dispose();
-    _emailController.dispose();
     _mobileController.dispose();
     super.dispose();
   }
@@ -52,13 +49,6 @@ class _RegisterPersonalInfoPageState
       errors.add('Please enter your last name');
     }
 
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      errors.add('Please enter your email');
-    } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      errors.add('Please enter a valid email address');
-    }
-
     final mobile = _mobileController.text.trim();
     if (mobile.isEmpty) {
       errors.add('Please enter your mobile number');
@@ -73,8 +63,10 @@ class _RegisterPersonalInfoPageState
 
     setState(() => _isLoading = true);
 
+    // Email/password are kept internally for backend contract, but registration is mobile+OTP driven.
+    final registrationEmail = '$mobile@adrinolinq.app';
     final controller = ref.read(registerControllerProvider.notifier);
-    final success = await controller.generateOTP(email);
+    final success = await controller.generateOTP(mobile);
 
     setState(() => _isLoading = false);
 
@@ -86,7 +78,7 @@ class _RegisterPersonalInfoPageState
             builder: (_) => RegisterPasswordPage(
               firstName: firstName,
               lastName: lastName,
-              email: email,
+              email: registrationEmail,
               mobile: mobile,
             ),
           ),
@@ -106,10 +98,6 @@ class _RegisterPersonalInfoPageState
         }
       }
     }
-  }
-
-  void _onGoogleSignIn() {
-    // TODO: Implement Google Sign-In
   }
 
   void _onLogin() {
@@ -207,16 +195,6 @@ class _RegisterPersonalInfoPageState
         ),
         SizedBox(height: AppResponsive.s(context, 16)),
         AppTextFieldWithLabel(
-          controller: _emailController,
-          label: 'Email',
-          hintText: 'Email',
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-          isRequired: true,
-          autofillHints: const [AutofillHints.email],
-        ),
-        SizedBox(height: AppResponsive.s(context, 16)),
-        AppTextFieldWithLabel(
           controller: _mobileController,
           label: 'Mobile No.',
           hintText: 'Mobile No.',
@@ -258,55 +236,6 @@ class _RegisterPersonalInfoPageState
     );
   }
 
-  Widget _buildGoogleButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppResponsive.s(context, 50),
-      child: OutlinedButton(
-        onPressed: _onGoogleSignIn,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(
-            color: const Color(0xFF000000),
-            width: AppResponsive.thickness(context, 2),
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppResponsive.borderRadius(context, 28),
-          ),
-          overlayColor: Colors.transparent,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildGoogleLogo(context),
-            SizedBox(width: AppResponsive.s(context, 12)),
-            Text(
-              'continue with google',
-              style: TextStyle(
-                fontSize: AppResponsive.font(context, 17),
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGoogleLogo(BuildContext context) {
-    final size = AppResponsive.s(context, 20);
-    return SizedBox(
-      width: size,
-      height: size,
-      child: SvgPicture.asset(
-        'assets/icons/google-icon.svg',
-        width: size,
-        height: size,
-      ),
-    );
-  }
-
   Widget _buildLoginLink(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -337,7 +266,7 @@ class _RegisterPersonalInfoPageState
   Widget _buildPrivacyPolicy(BuildContext context) {
     return Text.rich(
       TextSpan(
-        text: 'Be continuing, you agree to our\n',
+        text: 'By continuing, you agree to our\n',
         style: TextStyle(
           fontSize: AppResponsive.font(context, 12),
           fontWeight: FontWeight.w500,

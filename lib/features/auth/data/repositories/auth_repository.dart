@@ -27,10 +27,21 @@ class AuthRepository {
     final request = LoginRequest(username: email, password: password);
     final response = await _remoteDataSource.login(request);
 
+    // Check roleTypeIds from login header - '5' must be present (may be comma-separated e.g. '4,3,5')
+    final ownerRoleIds =
+        (response.roleTypeIds ?? '').split(',').map((e) => e.trim()).toList();
+    if (!ownerRoleIds.contains('5')) {
+      throw Exception('No Access Allowed');
+    }
+
     await _secureStorage.write('auth_token', response.token);
     await _cache.saveAuthToken(response.token);
     await _cache.saveLoginState(true);
     await _localStorage.setBool(AppConstants.keyIsLoggedIn, true);
+    await _localStorage.setString(
+      AppConstants.keyRoleTypeIds,
+      response.roleTypeIds ?? '',
+    );
 
     if (response.email != null) {
       await _localStorage.setString('user_email', response.email!);
@@ -52,13 +63,22 @@ class AuthRepository {
     return response;
   }
 
-  Future<OTPResponse> registerOTP(String email) async {
-    final request = GenerateOTPRequest(email: email);
+  Future<OTPResponse> registerOTP(String mobile) async {
+    final request = RegisterOTPRequest(mobile: mobile);
     return _remoteDataSource.registerOTP(request);
   }
 
   Future<OTPResponse> register(RegisterRequest request) async {
-    return _remoteDataSource.register(request);
+    final response = await _remoteDataSource.register(request);
+    if (response.success &&
+        response.token != null &&
+        response.token!.isNotEmpty) {
+      await _secureStorage.write('auth_token', response.token!);
+      await _cache.saveAuthToken(response.token!);
+      await _cache.saveLoginState(true);
+      await _localStorage.setBool(AppConstants.keyIsLoggedIn, true);
+    }
+    return response;
   }
 
   Future<void> logout() async {
@@ -71,6 +91,7 @@ class AuthRepository {
     await _localStorage.remove('user_first_name');
     await _localStorage.remove('user_last_name');
     await _localStorage.remove('user_mobile');
+    await _localStorage.remove(AppConstants.keyRoleTypeIds);
   }
 
   Future<bool> isAuthenticated() async {

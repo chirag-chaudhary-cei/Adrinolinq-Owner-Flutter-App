@@ -78,6 +78,7 @@ class ApiEndpoints {
       '/api/TournamentTeams/getTournamentTeamsList';
   static const String saveTournamentTeams =
       '/api/TournamentTeams/saveTournamentTeams';
+  static const String getMyTeam = '/api/TournamentTeams/getMyTeam';
 
   // Tournament Team Players
   static const String getTournamentTeamPlayersList =

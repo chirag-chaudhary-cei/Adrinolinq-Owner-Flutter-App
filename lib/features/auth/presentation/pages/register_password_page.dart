@@ -38,9 +38,8 @@ class RegisterPasswordPage extends ConsumerStatefulWidget {
 
 class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
   final _formKey = GlobalKey<FormState>();
-  final _passwordController = TextEditingController(text: "");
-  final _confirmPasswordController = TextEditingController(text: "");
   final _otpController = TextEditingController();
+  late final TextEditingController _mobileController;
 
   bool _isLoading = false;
 
@@ -52,14 +51,14 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
   @override
   void initState() {
     super.initState();
+    _mobileController = TextEditingController(text: widget.mobile);
     _startOtpTimer();
   }
 
   @override
   void dispose() {
     _otpTimer?.cancel();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
+    _mobileController.dispose();
     _otpController.dispose();
     super.dispose();
   }
@@ -97,7 +96,7 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
 
     try {
       final authRepo = await ref.read(authRepositoryProvider.future);
-      await authRepo.registerOTP(widget.email);
+      await authRepo.registerOTP(widget.mobile);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,20 +121,6 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
   void _onCreateAccount() async {
     final errors = <String>[];
 
-    final password = _passwordController.text;
-    if (password.isEmpty) {
-      errors.add('Please enter a password');
-    } else if (password.length < 8) {
-      errors.add('Password must be at least 8 characters');
-    }
-
-    final confirmPassword = _confirmPasswordController.text;
-    if (confirmPassword.isEmpty) {
-      errors.add('Please confirm your password');
-    } else if (password != confirmPassword) {
-      errors.add('Passwords do not match');
-    }
-
     final otp = _otpController.text;
     if (otp.isEmpty) {
       errors.add('Please enter the OTP');
@@ -149,14 +134,13 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
     }
 
     setState(() => _isLoading = true);
+    final generatedPassword = '${widget.mobile}@A';
 
     final controller = ref.read(registerControllerProvider.notifier);
     final request = RegisterRequest(
       firstName: widget.firstName,
       lastName: widget.lastName,
-      email: widget.email,
       mobile: widget.mobile,
-      password: password,
       otp: otp,
     );
 
@@ -165,7 +149,7 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
     if (mounted && success) {
       final authRepo = await ref.read(authRepositoryProvider.future);
       try {
-        await authRepo.login(widget.email, password);
+        await authRepo.login(widget.mobile, generatedPassword);
 
         final localStorage = LocalStorage.instance;
         await localStorage.setString('user_first_name', widget.firstName);
@@ -284,29 +268,20 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
     return Column(
       children: [
         AppTextFieldWithLabel(
-          controller: _passwordController,
-          label: 'Password',
-          hintText: 'Password',
-          obscureText: true,
+          controller: _mobileController,
+          readOnly: true,
+          label: 'Mobile No.',
+          hintText: 'Mobile No.',
+          keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
+          backgroundColor: const Color(0xFFEEEEEE),
           isRequired: true,
-          autofillHints: const [AutofillHints.newPassword],
-        ),
-        SizedBox(height: AppResponsive.s(context, 16)),
-        AppTextFieldWithLabel(
-          controller: _confirmPasswordController,
-          label: 'Confirm Password',
-          hintText: 'Confirm Password',
-          obscureText: true,
-          textInputAction: TextInputAction.next,
-          isRequired: true,
-          autofillHints: const [AutofillHints.newPassword],
         ),
         SizedBox(height: AppResponsive.s(context, 16)),
         AppTextFieldWithLabel(
           controller: _otpController,
-          label: 'Email OTP',
-          hintText: 'Email OTP',
+          label: 'OTP',
+          hintText: 'OTP',
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
           isRequired: true,

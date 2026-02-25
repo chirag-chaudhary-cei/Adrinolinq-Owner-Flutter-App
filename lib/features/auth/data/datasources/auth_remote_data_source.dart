@@ -63,11 +63,20 @@ class AuthRemoteDataSource {
       _validateResponse(response, 'Login failed');
 
       final String? token = response.headers.value('token');
+
+      // Extract roletypeids from response headers
+      final String? roleTypeIds = response.headers.value('roletypeids');
+
       final responseData =
           Map<String, dynamic>.from(response.data as Map<String, dynamic>);
       if (token != null && token.isNotEmpty) {
         responseData['token'] = token;
         AppLogger.info('Token extracted from header: $token', 'AuthDataSource');
+      }
+      if (roleTypeIds != null && roleTypeIds.isNotEmpty) {
+        responseData['roleTypeIds'] = roleTypeIds;
+        AppLogger.info('Role Type IDs extracted from header: $roleTypeIds',
+            'AuthDataSource');
       }
 
       return LoginResponse.fromJson(responseData);
@@ -78,10 +87,12 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<OTPResponse> registerOTP(GenerateOTPRequest request) async {
+  Future<OTPResponse> registerOTP(RegisterOTPRequest request) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.registerOTP,
-          data: request.toJson(),);
+      final response = await _apiClient.post(
+        ApiEndpoints.registerOTP,
+        data: request.toJson(),
+      );
       _validateResponse(response, 'Failed to generate OTP');
       return OTPResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -96,7 +107,15 @@ class AuthRemoteDataSource {
       final response =
           await _apiClient.post(ApiEndpoints.register, data: request.toJson());
       _validateResponse(response, 'Registration failed');
-      return OTPResponse.fromJson(response.data as Map<String, dynamic>);
+
+      final token = response.headers.value('token');
+      final responseData =
+          Map<String, dynamic>.from(response.data as Map<String, dynamic>);
+      if (token != null && token.isNotEmpty) {
+        responseData['token'] = token;
+      }
+
+      return OTPResponse.fromJson(responseData);
     } on DioException catch (e) {
       throw Exception(_handleError(e));
     } catch (e) {
@@ -106,8 +125,10 @@ class AuthRemoteDataSource {
 
   Future<OTPResponse> forgotGenerateOTP(GenerateOTPRequest request) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.forgotGenerateOTP,
-          data: request.toJson(),);
+      final response = await _apiClient.post(
+        ApiEndpoints.forgotGenerateOTP,
+        data: request.toJson(),
+      );
       _validateResponse(response, 'Failed to generate OTP');
       return OTPResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -119,8 +140,10 @@ class AuthRemoteDataSource {
 
   Future<OTPResponse> forgotVerifyOTP(VerifyOTPRequest request) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.forgotVerifyOTP,
-          data: request.toJson(),);
+      final response = await _apiClient.post(
+        ApiEndpoints.forgotVerifyOTP,
+        data: request.toJson(),
+      );
       _validateResponse(response, 'Failed to verify OTP');
       return OTPResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
@@ -132,8 +155,10 @@ class AuthRemoteDataSource {
 
   Future<OTPResponse> forgotPassword(ForgotPasswordRequest request) async {
     try {
-      final response = await _apiClient.post(ApiEndpoints.forgotPassword,
-          data: request.toJson(),);
+      final response = await _apiClient.post(
+        ApiEndpoints.forgotPassword,
+        data: request.toJson(),
+      );
       _validateResponse(response, 'Failed to reset password');
       return OTPResponse.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {

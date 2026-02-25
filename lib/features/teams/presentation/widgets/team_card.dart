@@ -4,28 +4,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
-import '../../../../core/widgets/app_button.dart';
 import '../../data/models/manager_team_model.dart';
+import '../../data/models/team_player_model.dart';
 import '../providers/teams_providers.dart';
-import '../pages/team_players_page.dart';
 
 /// Team card widget matching the design specifications
 class TeamCard extends ConsumerWidget {
   const TeamCard({
     super.key,
     required this.team,
-    this.onTap,
-    this.onLongPress,
+    required this.onManage,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final ManagerTeamModel team;
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+  final VoidCallback onManage;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final repository = ref.read(teamsRepositoryProvider);
     final imageUrl = repository.getTeamImageUrl(team.imageFile);
+    final playersAsync = ref.watch(teamPlayersProvider(team.id));
 
     return Container(
       margin: AppResponsive.padding(context, horizontal: 20, vertical: 6),
@@ -101,70 +103,162 @@ class TeamCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Team Name with Player Count
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: team.name,
-                          style: TextStyle(
-                            fontFamily: 'SFProRounded',
-                            fontSize: AppResponsive.font(context, 16),
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
+                  // Team Name + Player Count inline via RichText
+                  Builder(builder: (context) {
+                    final count = _currentPlayerCount(playersAsync);
+                    return RichText(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      text: TextSpan(
+                        children: [
+                          TextSpan(
+                            text: team.name,
+                            style: TextStyle(
+                              fontFamily: 'SFProRounded',
+                              fontSize: AppResponsive.font(context, 16),
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
                           ),
+                          if (count > 0) ...[
+                            const TextSpan(text: '  '),
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Icon(
+                                Icons.group,
+                                size: AppResponsive.s(context, 13),
+                                color: const Color(0xFF888888),
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' $count Players',
+                              style: TextStyle(
+                                fontFamily: 'SFProRounded',
+                                fontSize: AppResponsive.font(context, 12),
+                                fontWeight: FontWeight.w400,
+                                color: const Color(0xFF888888),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
+
+                  // Sport row
+                  if (team.sportName != null && team.sportName!.isNotEmpty) ...[
+                    SizedBox(height: AppResponsive.s(context, 3)),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.sports,
+                          size: AppResponsive.s(context, 13),
+                          color: AppColors.accentBlue,
                         ),
-                        TextSpan(
-                          text: ' (11/15 Players)',
+                        SizedBox(width: AppResponsive.s(context, 3)),
+                        Text(
+                          team.sportName!,
                           style: TextStyle(
                             fontFamily: 'SFProRounded',
-                            fontSize: AppResponsive.font(context, 14),
-                            fontWeight: FontWeight.w400,
-                            color: const Color(0xFF666666),
+                            fontSize: AppResponsive.font(context, 12),
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.accentBlue,
                           ),
                         ),
                       ],
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: AppResponsive.s(context, 4)),
+                  ],
 
-                  // Captain/Manager Name
-                  Text(
-                    team.description ?? 'No description available',
-                    style: TextStyle(
-                      fontFamily: 'SFProRounded',
-                      fontSize: AppResponsive.font(context, 14),
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF666666),
+                  if (team.description != null &&
+                      team.description!.trim().isNotEmpty) ...[
+                    SizedBox(height: AppResponsive.s(context, 3)),
+                    Text(
+                      team.description!,
+                      style: TextStyle(
+                        fontFamily: 'SFProRounded',
+                        fontSize: AppResponsive.font(context, 13),
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF666666),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ],
               ),
             ),
             SizedBox(width: AppResponsive.s(context, 12)),
 
-            // Manage Button
-            AppButton(
-              text: 'Manage',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => TeamPlayersPage(team: team),
-                  ),
-                );
+            // More menu
+            PopupMenuButton<_TeamAction>(
+              tooltip: 'Team actions',
+              icon: const Icon(Icons.more_vert, color: Colors.black87),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onSelected: (action) {
+                switch (action) {
+                  case _TeamAction.manage:
+                    onManage();
+                    break;
+                  case _TeamAction.edit:
+                    onEdit();
+                    break;
+                  case _TeamAction.delete:
+                    onDelete();
+                    break;
+                }
               },
-              width: AppResponsive.s(context, 91),
-              height: AppResponsive.s(context, 36),
-              fontSize: AppResponsive.font(context, 13),
+              itemBuilder: (context) => [
+                PopupMenuItem<_TeamAction>(
+                  value: _TeamAction.manage,
+                  child: Row(
+                    children: [
+                      Icon(Icons.manage_accounts_outlined,
+                          size: 18, color: AppColors.accentBlue),
+                      const SizedBox(width: 10),
+                      const Text('Manage Players'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<_TeamAction>(
+                  value: _TeamAction.edit,
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined,
+                          size: 18, color: AppColors.textPrimaryLight),
+                      const SizedBox(width: 10),
+                      const Text('Edit Team'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<_TeamAction>(
+                  value: _TeamAction.delete,
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline,
+                          size: 18, color: Colors.red.shade600),
+                      const SizedBox(width: 10),
+                      Text('Delete',
+                          style: TextStyle(color: Colors.red.shade600)),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
     );
   }
+
+  int _currentPlayerCount(AsyncValue<List<TeamPlayerModel>> playersAsync) {
+    return playersAsync.when(
+      data: (players) => players.length,
+      loading: () => team.currentPlayers ?? 0,
+      error: (_, __) => team.currentPlayers ?? 0,
+    );
+  }
 }
+
+enum _TeamAction { manage, edit, delete }

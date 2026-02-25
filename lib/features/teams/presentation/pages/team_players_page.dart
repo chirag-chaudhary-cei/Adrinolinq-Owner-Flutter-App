@@ -245,7 +245,7 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildHeader(context, 0, 15),
+              _buildHeader(context, 0, widget.team.maxPlayers ?? 15),
               Divider(
                 color: Colors.grey.shade200,
                 thickness: 1,
@@ -267,7 +267,7 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
         body: SafeArea(
           child: Column(
             children: [
-              _buildHeader(context, 0, 15),
+              _buildHeader(context, 0, widget.team.maxPlayers ?? 15),
               Divider(
                 color: Colors.grey.shade200,
                 thickness: 1,
@@ -317,7 +317,7 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
 
   Widget _buildContent(BuildContext context, List<dynamic> players) {
     final playerCount = players.length;
-    final maxPlayers = 15; // TODO: Get from team data
+    final maxPlayers = widget.team.maxPlayers ?? 15;
 
     return Scaffold(
       backgroundColor: Colors.white,

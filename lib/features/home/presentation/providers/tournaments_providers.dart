@@ -161,8 +161,10 @@ final myTournamentsProvider =
 });
 
 /// Manager Teams provider - fetches all teams owned by the logged-in manager
+/// NOTE: NOT autoDispose — result (including error) is cached so navigating to
+/// tournament detail repeatedly does not trigger repeated API calls.
 final managerTeamsListProvider =
-    FutureProvider.autoDispose<List<ManagerTeamModel>>((ref) async {
+    FutureProvider<List<ManagerTeamModel>>((ref) async {
   final repository = ref.watch(tournamentsRepositoryProvider);
   return repository.getManagerTeamsList();
 });

@@ -86,6 +86,8 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   bool _isLoading = true;
   bool _isRegistrationClosed = false;
   int? _selectedTeamId;
+  String? _lastRegistrationCloseDate;
+  bool? _lastOpenOrClose;
 
   final ScrollController _scrollController = ScrollController();
 
@@ -155,7 +157,13 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     super.dispose();
   }
 
-  Future<void> _checkRegistrationStatus(TournamentModel tournament) async {
+  void _syncRegistrationStatus(TournamentModel tournament) {
+    if (_lastRegistrationCloseDate == tournament.registrationCloseDate &&
+        _lastOpenOrClose == tournament.openOrClose &&
+        !_isLoading) {
+      return;
+    }
+
     bool isClosed = false;
     if (tournament.registrationCloseDate.isNotEmpty) {
       try {
@@ -173,6 +181,8 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
         _isRegistrationClosed = isClosed;
         _canRegister = tournament.openOrClose;
         _isLoading = false;
+        _lastRegistrationCloseDate = tournament.registrationCloseDate;
+        _lastOpenOrClose = tournament.openOrClose;
       });
     }
   }
@@ -493,7 +503,8 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
         await ref.read(tournamentDetailsProvider(widget.tournamentId).future);
     if (tournament == null) return;
 
-    if (_canRegister == true) {
+    final canRegister = _canRegister ?? tournament.openOrClose;
+    if (canRegister) {
       // Open registration - directly register the selected team
       AppLoading.showDialog(
         context,
@@ -800,11 +811,9 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
           );
         }
 
-        // Check registration status when tournament loads
+        // Keep status synced with latest tournament payload.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_isLoading) {
-            _checkRegistrationStatus(tournament);
-          }
+          _syncRegistrationStatus(tournament);
         });
 
         return _buildTournamentDetail(context, tournament);
@@ -843,65 +852,62 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                 ),
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _isRegistrationClosed
-                        ? Container(
-                            padding: AppResponsive.padding(
-                              context,
-                              all: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius:
-                                  AppResponsive.borderRadius(context, 16),
-                              border: Border.all(
-                                color: Colors.grey.shade300,
-                                width: 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.event_busy,
-                                  color: Colors.grey.shade600,
-                                  size: AppResponsive.icon(context, 24),
-                                ),
-                                SizedBox(width: AppResponsive.s(context, 12)),
-                                Text(
-                                  'Registration Closed',
-                                  style: TextStyle(
-                                    fontFamily: 'SFProRounded',
-                                    fontSize: AppResponsive.font(context, 16),
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _TeamSelectionDropdown(
-                                selectedTeamId: _selectedTeamId,
-                                onTeamSelected: (teamId) {
-                                  setState(() {
-                                    _selectedTeamId = teamId;
-                                  });
-                                },
-                                onCreateTeam: _showCreateTeamDialog,
-                              ),
-                              SizedBox(height: AppResponsive.s(context, 12)),
-                              AppButton(
-                                text: _canRegister == true
-                                    ? "Register Now • INR${tournament.feesAmount.toStringAsFixed(0)}"
-                                    : "Submit Invite Code",
-                                onPressed: _handleRegister,
-                              ),
-                            ],
+                child: _isRegistrationClosed
+                    ? Container(
+                        padding: AppResponsive.padding(
+                          context,
+                          all: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: AppResponsive.borderRadius(context, 16),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 1,
                           ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              color: Colors.grey.shade600,
+                              size: AppResponsive.icon(context, 24),
+                            ),
+                            SizedBox(width: AppResponsive.s(context, 12)),
+                            Text(
+                              'Registration Closed',
+                              style: TextStyle(
+                                fontFamily: 'SFProRounded',
+                                fontSize: AppResponsive.font(context, 16),
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _TeamSelectionDropdown(
+                            selectedTeamId: _selectedTeamId,
+                            onTeamSelected: (teamId) {
+                              setState(() {
+                                _selectedTeamId = teamId;
+                              });
+                            },
+                            onCreateTeam: _showCreateTeamDialog,
+                          ),
+                          SizedBox(height: AppResponsive.s(context, 12)),
+                          AppButton(
+                            text: (_canRegister ?? tournament.openOrClose)
+                                ? "Register Now - INR${tournament.feesAmount.toStringAsFixed(0)}"
+                                : "Submit Invite Code",
+                            onPressed: _handleRegister,
+                          ),
+                        ],
+                      ),
               ),
             ),
           ),
@@ -1910,10 +1916,11 @@ class _TeamSelectionDropdown extends ConsumerWidget {
                 ),
               ),
             ),
+            // Retry button — manually re-fetches after a failure
             TextButton(
-              onPressed: onCreateTeam,
+              onPressed: () => ref.invalidate(managerTeamsListProvider),
               child: Text(
-                'Create',
+                'Retry',
                 style: TextStyle(
                   fontFamily: 'SFProRounded',
                   fontSize: AppResponsive.font(context, 14),

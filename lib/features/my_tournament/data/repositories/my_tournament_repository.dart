@@ -1,6 +1,7 @@
 import '../datasources/my_tournament_remote_data_source.dart';
 import '../models/tournament_registration_model.dart';
 import '../models/tournament_team_player_model.dart';
+import '../models/my_team_model.dart';
 
 /// My Tournament repository - handles business logic for tournament registrations
 class MyTournamentRepository {
@@ -42,5 +43,13 @@ class MyTournamentRepository {
     int tournamentId,
   ) async {
     return remoteDataSource.getEnrolledPlayers(tournamentId);
+  }
+
+  MyTeamModel? getCachedMyTeam(int tournamentId) {
+    return remoteDataSource.getCachedMyTeam(tournamentId);
+  }
+
+  Future<MyTeamModel?> getMyTeam(int tournamentId) async {
+    return remoteDataSource.getMyTeam(tournamentId);
   }
 }

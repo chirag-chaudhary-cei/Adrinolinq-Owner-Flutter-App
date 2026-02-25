@@ -360,6 +360,37 @@ class TeamsRemoteDataSource {
     }
   }
 
+  /// Delete a team
+  Future<void> deleteTeam(int teamId) async {
+    if (!_connectivity.isConnected) {
+      throw Exception(
+        'Internet connection required to delete team. Please check your connection and try again.',
+      );
+    }
+
+    try {
+      print('🗑️ [TeamsDS] Deleting team ID: $teamId...');
+
+      final response = await _apiClient.post(
+        ApiEndpoints.deleteTeams,
+        data: {'id': teamId},
+      );
+
+      _validateResponse(response, 'Failed to delete team');
+
+      // Clear list cache so next fetch reflects deletion.
+      await _cache.clear(_cacheKeyTeamsList);
+
+      print('✅ [TeamsDS] Team deleted successfully');
+    } on DioException catch (e) {
+      print('❌ [TeamsDS] DioException: ${e.message}');
+      throw Exception('Failed to delete team: ${e.message}');
+    } catch (e) {
+      print('❌ [TeamsDS] Error deleting team: $e');
+      rethrow;
+    }
+  }
+
   /// Get sport roles list for a specific sport
   Future<List<Map<String, dynamic>>> getSportRolesList(int sportId) async {
     try {

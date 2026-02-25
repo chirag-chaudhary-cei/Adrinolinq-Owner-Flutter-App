@@ -20,6 +20,7 @@ class AppConstants {
   static const String keyIsLoggedIn = 'is_logged_in'; // Login status flag
   static const String keyRegistrationOnboardingPending =
       'registration_onboarding_pending'; // Registration flow onboarding flag
+  static const String keyRoleTypeIds = 'role_type_ids';
 
   // Pagination
   static const int defaultPageSize = 20;

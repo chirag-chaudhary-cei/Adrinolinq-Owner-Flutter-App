@@ -17,8 +17,6 @@ import '../../../../core/widgets/error_view.dart';
 import '../../../../core/widgets/user_header.dart';
 import '../../../../core/widgets/app_search_bar.dart';
 import '../../../../core/widgets/event_card.dart';
-import '../../../my_tournament/presentation/providers/my_tournament_providers.dart';
-import '../../../my_tournament/data/models/tournament_registration_model.dart';
 
 /// Home screen content widget - uses Riverpod for tournaments API
 /// Implements offline-first: shows cached data immediately, refreshes in background
@@ -58,15 +56,6 @@ class _HomeContentState extends ConsumerState<HomeContent>
         _showNoInternetDialog();
       }
     });
-  }
-
-  bool _hasPlayerRegistered(
-    int tournamentId,
-    List<TournamentRegistrationModel>? registrations,
-  ) {
-    if (registrations == null) return false;
-    return registrations
-        .any((reg) => reg.tournamentId == tournamentId && !reg.deleted);
   }
 
   @override
@@ -260,6 +249,33 @@ class _HomeContentState extends ConsumerState<HomeContent>
     return text[0].toUpperCase() + text.substring(1).toLowerCase();
   }
 
+  void _openTournamentDetails({
+    required BuildContext context,
+    required EventModel event,
+    required TournamentModel tournament,
+    required List<TournamentModel>? registeredTournaments,
+  }) {
+    final hasRegistered = registeredTournaments?.any((t) => t.id == tournament.id) ?? false;
+
+    if (hasRegistered) {
+      Navigator.pushNamed(
+        context,
+        AppRouter.registeredTournamentDetail,
+        arguments: {
+          'event': event,
+          'tournament': tournament,
+        },
+      );
+      return;
+    }
+
+    Navigator.pushNamed(
+      context,
+      AppRouter.tournamentDetail,
+      arguments: tournament,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tournamentsAsync = ref.watch(offlineFirstTournamentsProvider);
@@ -409,8 +425,7 @@ class _HomeContentState extends ConsumerState<HomeContent>
                       );
                     }
 
-                    final registrationsAsync =
-                        ref.watch(myTournamentRegistrationsProvider);
+                    final myTournamentsAsync = ref.watch(myTournamentsProvider);
 
                     return SliverPadding(
                       padding: AppResponsive.paddingSymmetric(
@@ -430,72 +445,20 @@ class _HomeContentState extends ConsumerState<HomeContent>
                               child: EventCard(
                                 event: event,
                                 onTap: () {
-                                  final registrations =
-                                      registrationsAsync.hasValue
-                                          ? registrationsAsync.value
-                                          : null;
-                                  final hasRegistered = _hasPlayerRegistered(
-                                    tournament.id,
-                                    registrations,
+                                  _openTournamentDetails(
+                                    context: context,
+                                    event: event,
+                                    tournament: tournament,
+                                    registeredTournaments: myTournamentsAsync.value,
                                   );
-
-                                  if (hasRegistered && registrations != null) {
-                                    final registration =
-                                        registrations.firstWhere(
-                                      (reg) =>
-                                          reg.tournamentId == tournament.id &&
-                                          !reg.deleted,
-                                    );
-
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRouter.registeredTournamentDetail,
-                                      arguments: {
-                                        'event': event,
-                                        'registration': registration,
-                                      },
-                                    );
-                                  } else {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRouter.tournamentDetail,
-                                      arguments: tournament.id,
-                                    );
-                                  }
                                 },
                                 onViewDetails: () {
-                                  final registrations =
-                                      registrationsAsync.hasValue
-                                          ? registrationsAsync.value
-                                          : null;
-                                  final hasRegistered = _hasPlayerRegistered(
-                                    tournament.id,
-                                    registrations,
+                                  _openTournamentDetails(
+                                    context: context,
+                                    event: event,
+                                    tournament: tournament,
+                                    registeredTournaments: myTournamentsAsync.value,
                                   );
-
-                                  if (hasRegistered && registrations != null) {
-                                    final registration =
-                                        registrations.firstWhere(
-                                      (reg) =>
-                                          reg.tournamentId == tournament.id &&
-                                          !reg.deleted,
-                                    );
-
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRouter.registeredTournamentDetail,
-                                      arguments: {
-                                        'event': event,
-                                        'registration': registration,
-                                      },
-                                    );
-                                  } else {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRouter.tournamentDetail,
-                                      arguments: tournament.id,
-                                    );
-                                  }
                                 },
                               ),
                             );

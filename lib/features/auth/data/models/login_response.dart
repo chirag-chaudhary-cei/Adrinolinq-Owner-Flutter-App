@@ -9,6 +9,7 @@ class LoginResponse extends Equatable {
     this.lastName,
     this.responseCode,
     this.message,
+    this.roleTypeIds,
   });
 
   final String token;
@@ -18,6 +19,7 @@ class LoginResponse extends Equatable {
   final String? lastName;
   final String? responseCode;
   final String? message;
+  final String? roleTypeIds;
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     final responseCode = json['response_code'] as String?;
@@ -49,6 +51,7 @@ class LoginResponse extends Equatable {
       lastName: userData?['lastName'] as String?,
       responseCode: responseCode,
       message: message ?? json['message'] as String?,
+      roleTypeIds: json['roleTypeIds'] as String?,
     );
   }
 
@@ -63,5 +66,6 @@ class LoginResponse extends Equatable {
         lastName,
         responseCode,
         message,
+        roleTypeIds,
       ];
 }

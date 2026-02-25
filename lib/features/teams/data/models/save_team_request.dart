@@ -9,6 +9,8 @@ class SaveTeamRequest extends Equatable {
     this.description,
     this.imageFile,
     required this.sportId,
+    this.minTeamSize,
+    this.maxTeamSize,
   });
 
   final int? id; // Null for new team, provided for update
@@ -17,6 +19,8 @@ class SaveTeamRequest extends Equatable {
   final String? description;
   final String? imageFile;
   final int sportId;
+  final int? minTeamSize;
+  final int? maxTeamSize;
 
   /// Validate the request
   String? validate() {
@@ -28,6 +32,17 @@ class SaveTeamRequest extends Equatable {
     }
     if (sportId <= 0) {
       return 'Please select a sport';
+    }
+    if (minTeamSize != null && minTeamSize! <= 0) {
+      return 'Minimum team size must be greater than 0';
+    }
+    if (maxTeamSize != null && maxTeamSize! <= 0) {
+      return 'Maximum team size must be greater than 0';
+    }
+    if (minTeamSize != null &&
+        maxTeamSize != null &&
+        minTeamSize! > maxTeamSize!) {
+      return 'Minimum team size cannot be greater than maximum team size';
     }
     if (description != null && description!.length > 200) {
       return 'Description must be 200 characters or less';
@@ -55,6 +70,12 @@ class SaveTeamRequest extends Equatable {
     if (imageFile != null && imageFile!.trim().isNotEmpty) {
       map['imageFile'] = imageFile;
     }
+    if (minTeamSize != null) {
+      map['minTeamSize'] = minTeamSize;
+    }
+    if (maxTeamSize != null) {
+      map['maxTeamSize'] = maxTeamSize;
+    }
 
     return map;
   }
@@ -67,5 +88,7 @@ class SaveTeamRequest extends Equatable {
         description,
         imageFile,
         sportId,
+        minTeamSize,
+        maxTeamSize,
       ];
 }

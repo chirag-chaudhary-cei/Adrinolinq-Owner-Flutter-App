@@ -90,6 +90,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   // Loading states
   bool _isLoading = false;
   bool _isLoadingInitialData = true; // Track initial profile data load
+  bool _allowPop = false;
+  bool _showCrossRoleInfo = false;
+  String _crossRoleInfoText = '';
 
   // Change tracking - Store initial values to detect changes
   Map<String, dynamic> _initialProfileData = {};
@@ -127,6 +130,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // Load existing profile data (if any) to prefill form
     // This will also load communities appropriately based on edit mode
     _loadExistingProfile();
+    _loadRoleTypeInfo();
+  }
+
+  Future<void> _loadRoleTypeInfo() async {
+    final roleTypeIdsRaw =
+        LocalStorage.instance.getString(AppConstants.keyRoleTypeIds) ?? '';
+    final roleIds = roleTypeIdsRaw
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .where((e) => e == '3' || e == '4' || e == '5')
+        .toSet()
+        .toList();
+
+    if (roleIds.length <= 1) return;
+
+    final roleNames = roleIds.map((id) {
+      switch (id) {
+        case '3':
+          return 'Organizer';
+        case '4':
+          return 'Player';
+        case '5':
+          return 'Owner';
+        default:
+          return '';
+      }
+    }).where((name) => name.isNotEmpty).toList();
+
+    if (!mounted || roleNames.length <= 1) return;
+
+    setState(() {
+      _showCrossRoleInfo = true;
+      _crossRoleInfoText =
+          'You have multiple roles (${roleNames.join(', ')}). Any changes you make here will reflect in your other roles too.';
+    });
   }
 
   /// Parse backend DOB strings into [DateTime]. Supports common formats:
@@ -1082,8 +1121,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  /// Header back button - always shows confirmation dialog
-  void _onHeaderBackPressed() async {
+  Future<bool> _handleBackNavigation() async {
+    if (_currentPhase > 0) {
+      setState(() => _currentPhase--);
+      return false;
+    }
+
     // In edit mode, show confirmation before going back
     if (widget.isEditMode) {
       final confirmed = await AppDialogs.showConfirmation(
@@ -1094,11 +1137,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         confirmText: 'Yes',
         cancelText: 'Cancel',
       );
-
-      if (confirmed == true && mounted) {
-        Navigator.of(context).pop();
-      }
-      return;
+      return confirmed == true;
     }
 
     // In onboarding mode, show confirmation and clear data
@@ -1127,56 +1166,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         (route) => false,
       );
     }
+    return false;
+  }
+
+  void _popCurrentRoute() {
+    if (!mounted) return;
+    if (!_allowPop) {
+      setState(() => _allowPop = true);
+    }
+    Navigator.of(context).pop();
+  }
+
+  /// Header back button - always shows confirmation dialog
+  void _onHeaderBackPressed() async {
+    final shouldPop = await _handleBackNavigation();
+    if (shouldPop && mounted) {
+      _popCurrentRoute();
+    }
   }
 
   void _onBack() async {
-    if (_currentPhase > 0) {
-      setState(() => _currentPhase--);
-    } else {
-      // In edit mode, show confirmation before going back
-      if (widget.isEditMode) {
-        final confirmed = await AppDialogs.showConfirmation(
-          context,
-          title: 'Discard Changes?',
-          message:
-              'Are you sure you want to go back? Any unsaved changes will be lost.',
-          confirmText: 'Yes',
-          cancelText: 'Cancel',
-        );
-
-        if (confirmed == true && mounted) {
-          Navigator.of(context).pop();
-        }
-        return;
-      }
-
-      // In onboarding mode, show confirmation and clear data
-      final confirmed = await AppDialogs.showConfirmation(
-        context,
-        title: 'Exit Onboarding?',
-        message:
-            'Are you sure you want to go back? Your progress will be lost.',
-        confirmText: 'Yes',
-        cancelText: 'Cancel',
-      );
-
-      if (confirmed == true && mounted) {
-        // Clear onboarding data and navigate to register screen
-        final localStorage = LocalStorage.instance;
-        await localStorage.setBool(AppConstants.keyIsLoggedIn, false);
-        await localStorage.setBool(AppConstants.keyProfileSaved, false);
-        await localStorage.setBool(
-          AppConstants.keyRegistrationOnboardingPending,
-          false,
-        );
-        await SecureStorage.instance.delete('auth_token');
-
-        // Navigate to register screen, clearing the entire navigation stack
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRouter.register,
-          (route) => false,
-        );
-      }
+    final shouldPop = await _handleBackNavigation();
+    if (shouldPop && mounted) {
+      _popCurrentRoute();
     }
   }
 
@@ -1395,10 +1407,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _handleBackNavigation();
+        if (shouldPop) {
+          _popCurrentRoute();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
           children: [
             // Header with back button and title only
             _buildHeaderTitle(context),
@@ -1450,10 +1471,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
             ),
+            if (_showCrossRoleInfo) _buildCrossRoleInfo(context),
             // Bottom buttons using global AppButtonPair
             _buildBottomButtons(context),
           ],
         ),
+      ),
       ),
     );
   }
@@ -1894,12 +1917,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         // Email ID
         AppTextFieldWithLabel(
           controller: _emailController,
-          readOnly: true,
           label: 'Email ID',
           hintText: 'Email ID',
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
-          backgroundColor: const Color(0xFFEEEEEE),
           isRequired: true,
         ),
       ],
@@ -1925,12 +1946,47 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               primary: AppColors.accentBlue,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: AppColors.textPrimaryLight,
+              onSurface: Color(0xFF1A1A1A),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.accentBlue,
               ),
+            ),
+            textTheme: Theme.of(context).textTheme.apply(
+                  bodyColor: const Color(0xFF1A1A1A),
+                  displayColor: const Color(0xFF1A1A1A),
+                ),
+            textSelectionTheme: const TextSelectionThemeData(
+              cursorColor: AppColors.accentBlue,
+              selectionColor: Color(0x663E8EE9),
+              selectionHandleColor: AppColors.accentBlue,
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFF000000),
+                  width: 2,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFF000000),
+                  width: 2,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: AppColors.accentBlue,
+                  width: 2,
+                ),
+              ),
+              hintStyle: const TextStyle(color: Color(0xFF9E9E9E)),
+              labelStyle: const TextStyle(color: Color(0xFF757575)),
+              floatingLabelStyle: const TextStyle(color: AppColors.accentBlue),
             ),
           ),
           child: child!,
@@ -2155,6 +2211,27 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       nextText: isLastPhase ? 'Save' : 'Next',
       showBack: !isFirstPhase,
       isLoading: _isLoading,
+    );
+  }
+
+  Widget _buildCrossRoleInfo(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: AppResponsive.padding(context, horizontal: 24, vertical: 8),
+      padding: AppResponsive.padding(context, horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F7FF),
+        borderRadius: AppResponsive.borderRadius(context, 10),
+        border: Border.all(color: const Color(0xFFB7D6FF)),
+      ),
+      child: Text(
+        _crossRoleInfoText,
+        style: TextStyle(
+          fontSize: AppResponsive.font(context, 12),
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFF1E4D8F),
+        ),
+      ),
     );
   }
 }

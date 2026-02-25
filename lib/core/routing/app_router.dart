@@ -19,6 +19,7 @@ import '../../features/my_tournament/data/models/tournament_registration_model.d
 import '../../features/my_tournament/presentation/pages/player_profile_screen.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/tournament_detail_page.dart';
+import '../../features/home/data/models/tournament_model.dart';
 import '../../core/widgets/event_card.dart';
 import 'route_guard.dart';
 
@@ -102,7 +103,10 @@ class AppRouter {
       case changePassword:
         return MaterialPageRoute(builder: (_) => const ChangePasswordPage());
       case tournamentDetail:
-        final tournamentId = settings.arguments as int;
+        // Accept either a raw int ID or a full TournamentModel (from home tap)
+        final detailArg = settings.arguments;
+        final tournamentId =
+            detailArg is TournamentModel ? detailArg.id : detailArg as int;
         return MaterialPageRoute(
           builder: (_) => TournamentDetailPage(tournamentId: tournamentId),
         );
@@ -127,8 +131,37 @@ class AppRouter {
       case registeredTournamentDetail:
         final args = settings.arguments as Map<String, dynamic>;
         final event = args['event'] as EventModel;
-        final registration =
-            args['registration'] as TournamentRegistrationModel;
+        // Accept either a TournamentRegistrationModel directly (from my_tournament_page)
+        // or a TournamentModel (from home_content tap — same as Player app)
+        final TournamentRegistrationModel registration;
+        if (args['registration'] is TournamentRegistrationModel) {
+          registration = args['registration'] as TournamentRegistrationModel;
+        } else {
+          final tournament = args['tournament'] as TournamentModel;
+          registration = TournamentRegistrationModel(
+            id: tournament.id,
+            creationTimestamp:
+                tournament.creationTimestamp ?? DateTime.now().toString(),
+            playerUserId: 0,
+            tournamentId: tournament.id,
+            deleted: false,
+            status: true,
+            tournamentName: tournament.name,
+            tournamentDate: tournament.tournamentDate,
+            tournamentEndDate: tournament.tournamentEndDate,
+            tournamentImageFile: tournament.imageFile,
+            tournamentSportId: tournament.sportId,
+            tournamentSport: tournament.sport,
+            tournamentFeesAmount: tournament.feesAmount.toDouble(),
+            tournamentCountry: tournament.country,
+            tournamentState: tournament.state,
+            tournamentDistrict: tournament.district,
+            tournamentCity: tournament.city,
+            tournamentMaxRegistrations: tournament.maximumRegistrationsCount,
+            registrationStatus: 'Registered',
+            paymentStatus: 'Paid',
+          );
+        }
         return MaterialPageRoute(
           builder: (_) => RegisteredTournamentDetailPage(
             event: event,

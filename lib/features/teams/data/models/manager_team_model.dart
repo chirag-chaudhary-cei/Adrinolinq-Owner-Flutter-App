@@ -12,6 +12,9 @@ class ManagerTeamModel extends Equatable {
     this.sportName,
     this.imageUrl,
     this.creationTimestamp,
+    this.minPlayers,
+    this.maxPlayers,
+    this.currentPlayers,
     this.deleted = false,
     this.status = true,
   });
@@ -25,10 +28,22 @@ class ManagerTeamModel extends Equatable {
   final String? sportName;
   final String? imageUrl;
   final String? creationTimestamp;
+  final int? minPlayers;
+  final int? maxPlayers;
+  final int? currentPlayers;
   final bool deleted;
   final bool status;
 
   factory ManagerTeamModel.fromJson(Map<String, dynamic> json) {
+    int? parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
+    final teamPlayersList = json['teamPlayersList'];
+    final playersFromList = teamPlayersList is List ? teamPlayersList.length : null;
+
     return ManagerTeamModel(
       id: json['id'] as int,
       managerTypeId: json['managerTypeId'] as int? ?? 84,
@@ -39,6 +54,12 @@ class ManagerTeamModel extends Equatable {
       sportName: json['sportName'] as String?,
       imageUrl: json['imageUrl'] as String?,
       creationTimestamp: json['creationTimestamp'] as String?,
+      minPlayers: parseInt(json['minTeamSize']) ?? parseInt(json['minPlayers']),
+      maxPlayers: parseInt(json['maxTeamSize']) ?? parseInt(json['maxPlayers']),
+      currentPlayers: parseInt(json['currentPlayersCount']) ??
+          parseInt(json['playersCount']) ??
+          parseInt(json['teamPlayersCount']) ??
+          playersFromList,
       deleted: json['deleted'] as bool? ?? false,
       status: json['status'] as bool? ?? true,
     );
@@ -55,6 +76,9 @@ class ManagerTeamModel extends Equatable {
       if (sportName != null) 'sportName': sportName,
       if (imageUrl != null) 'imageUrl': imageUrl,
       if (creationTimestamp != null) 'creationTimestamp': creationTimestamp,
+      if (minPlayers != null) 'minPlayers': minPlayers,
+      if (maxPlayers != null) 'maxPlayers': maxPlayers,
+      if (currentPlayers != null) 'currentPlayers': currentPlayers,
       'deleted': deleted,
       'status': status,
     };
@@ -70,6 +94,9 @@ class ManagerTeamModel extends Equatable {
     String? sportName,
     String? imageUrl,
     String? creationTimestamp,
+    int? minPlayers,
+    int? maxPlayers,
+    int? currentPlayers,
     bool? deleted,
     bool? status,
   }) {
@@ -83,6 +110,9 @@ class ManagerTeamModel extends Equatable {
       sportName: sportName ?? this.sportName,
       imageUrl: imageUrl ?? this.imageUrl,
       creationTimestamp: creationTimestamp ?? this.creationTimestamp,
+      minPlayers: minPlayers ?? this.minPlayers,
+      maxPlayers: maxPlayers ?? this.maxPlayers,
+      currentPlayers: currentPlayers ?? this.currentPlayers,
       deleted: deleted ?? this.deleted,
       status: status ?? this.status,
     );
@@ -99,6 +129,9 @@ class ManagerTeamModel extends Equatable {
         sportName,
         imageUrl,
         creationTimestamp,
+        minPlayers,
+        maxPlayers,
+        currentPlayers,
         deleted,
         status,
       ];

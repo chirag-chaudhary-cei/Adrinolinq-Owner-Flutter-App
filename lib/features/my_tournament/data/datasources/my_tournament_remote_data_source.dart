@@ -5,6 +5,7 @@ import '../../../../core/cache/hive_cache_manager.dart';
 import '../../../../core/constants/api_endpoints.dart';
 import '../models/tournament_registration_model.dart';
 import '../models/tournament_team_player_model.dart';
+import '../models/my_team_model.dart';
 
 /// My Tournament remote data source - handles API calls for tournament registrations
 /// Implements cache-first strategy for offline support
@@ -18,6 +19,9 @@ class MyTournamentRemoteDataSource {
 
   static String _cacheKeyTeamPlayers(int teamId) =>
       'my_tournament_team_players_$teamId';
+
+  static String _cacheKeyMyTeam(int tournamentId) =>
+      'my_tournament_my_team_$tournamentId';
 
   void _validateResponse(Response response, String fallbackError) {
     if (response.statusCode != 200) {
@@ -324,6 +328,77 @@ class MyTournamentRemoteDataSource {
       return '';
     }
     return '${_apiClient.baseUrl}${ApiEndpoints.tournamentsUploads}$imageFile';
+  }
+
+  /// Get cached my team data
+  MyTeamModel? getCachedMyTeam(int tournamentId) {
+    final cached = _cache.get(_cacheKeyMyTeam(tournamentId));
+    if (cached != null && cached is Map) {
+      try {
+        final map = Map<String, dynamic>.from(cached);
+        if (!map.containsKey('id')) return null;
+        if (kDebugMode) {
+          print(
+              '📦 [MyTournamentDS] Cache hit: my team for tournamentId: $tournamentId');
+        }
+        return MyTeamModel.fromJson(map);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// Get my team for a tournament — returns null if no team allocated
+  Future<MyTeamModel?> getMyTeam(int tournamentId) async {
+    try {
+      if (kDebugMode) {
+        print(
+            '🔍 [MyTournamentDS] Fetching my team for tournamentId: $tournamentId');
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getMyTeam,
+        data: {'tournamentId': tournamentId},
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      final responseCode = data['response_code'] as String?;
+      final obj = data['obj'];
+
+      if (obj == null ||
+          obj is! Map<String, dynamic> ||
+          obj.isEmpty ||
+          !obj.containsKey('id') ||
+          (responseCode != null && responseCode != '200')) {
+        if (kDebugMode) {
+          print('⚠️ [MyTournamentDS] No team allocated for this tournament');
+        }
+        await _cache.clear(_cacheKeyMyTeam(tournamentId));
+        return null;
+      }
+
+      await _cache.save(_cacheKeyMyTeam(tournamentId), obj);
+      final team = MyTeamModel.fromJson(obj);
+      if (kDebugMode) {
+        print(
+            '✅ [MyTournamentDS] Team loaded: ${team.name} (${team.teamPlayersList.length} players)');
+      }
+      return team;
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print(
+            '❌ [MyTournamentDS] DioException loading team: ${_handleError(e)}');
+      }
+      final cached = getCachedMyTeam(tournamentId);
+      if (cached != null) return cached;
+      throw Exception(_handleError(e));
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [MyTournamentDS] Unexpected error loading team: $e');
+      }
+      throw Exception('Failed to load team: $e');
+    }
   }
 
   Future<List<Map<String, dynamic>>> getEnrolledPlayers(
