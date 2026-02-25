@@ -7,8 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
 import '../../../../core/routing/app_router.dart';
-import '../../../../core/storage/local_storage.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/app_text_field_with_label.dart';
 import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -134,7 +132,7 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
     }
 
     setState(() => _isLoading = true);
-    final generatedPassword = '${widget.mobile}@A';
+    const generatedPassword = '12345678';
 
     final controller = ref.read(registerControllerProvider.notifier);
     final request = RegisterRequest(
@@ -144,27 +142,29 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
       otp: otp,
     );
 
-    final success = await controller.register(request);
+    final serverMessage = await controller.register(request);
 
-    if (mounted && success) {
+    if (mounted && serverMessage != null) {
+      // Show server response dialog
+      // Handle obj=[] or empty - show fallback message
+      final displayMessage = (serverMessage.isNotEmpty && serverMessage != '[]')
+          ? serverMessage
+          : 'Registration Successful';
+      await AppDialogs.showInfo(
+        context,
+        message: displayMessage,
+        title: 'Registration',
+      );
+
+      // After successful registration, auto-login and go to onboarding
       final authRepo = await ref.read(authRepositoryProvider.future);
       try {
         await authRepo.login(widget.mobile, generatedPassword);
 
-        final localStorage = LocalStorage.instance;
-        await localStorage.setString('user_first_name', widget.firstName);
-        await localStorage.setString('user_last_name', widget.lastName);
-        await localStorage.setString('user_email', widget.email);
-        await localStorage.setString('user_mobile', widget.mobile);
-
-        await localStorage.setBool(
-            AppConstants.keyRegistrationOnboardingPending, true,);
-
         if (!mounted) return;
-
         setState(() => _isLoading = false);
 
-        await Navigator.of(context).pushNamedAndRemoveUntil(
+        Navigator.of(context).pushNamedAndRemoveUntil(
           AppRouter.onboarding,
           (route) => false,
           arguments: {

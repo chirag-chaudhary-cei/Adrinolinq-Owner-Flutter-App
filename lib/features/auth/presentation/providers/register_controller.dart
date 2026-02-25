@@ -52,7 +52,8 @@ class RegisterController extends Notifier<RegisterState> {
   }
 
   /// Complete registration with OTP
-  Future<bool> register(RegisterRequest request) async {
+  /// Returns the server response message on success, null on failure
+  Future<String?> register(RegisterRequest request) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
@@ -65,14 +66,14 @@ class RegisterController extends Notifier<RegisterState> {
           registrationComplete: true,
           otpVerified: true,
         );
-        return true;
+        return response.message;
       } else {
         final errorMsg = response.message ?? 'Registration failed';
         state = state.copyWith(
           isLoading: false,
           errorMessage: errorMsg,
         );
-        return false;
+        return null;
       }
     } catch (e) {
       final errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -80,7 +81,7 @@ class RegisterController extends Notifier<RegisterState> {
         isLoading: false,
         errorMessage: errorMessage,
       );
-      return false;
+      return null;
     }
   }
 

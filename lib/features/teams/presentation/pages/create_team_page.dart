@@ -103,7 +103,7 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
                       // Sport Dropdown
                       sportsAsync.when(
                         data: (sports) {
-                          // Pre-select sport in edit mode
+                          // Pre-select sport in edit mode by matching sportId
                           if (_isEditMode &&
                               _selectedSport == null &&
                               widget.team!.sportId > 0) {
@@ -113,11 +113,7 @@ class _CreateTeamPageState extends ConsumerState<CreateTeamPage> {
                                 )
                                 .firstOrNull;
                             if (match != null) {
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                if (mounted) {
-                                  setState(() => _selectedSport = match);
-                                }
-                              });
+                              _selectedSport = match;
                             }
                           }
 
