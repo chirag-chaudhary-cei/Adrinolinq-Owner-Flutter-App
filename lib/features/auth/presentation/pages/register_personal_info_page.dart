@@ -64,7 +64,6 @@ class _RegisterPersonalInfoPageState
     setState(() => _isLoading = true);
 
     // Email/password are kept internally for backend contract, but registration is mobile+OTP driven.
-    final registrationEmail = '$mobile@adrinolinq.app';
     final controller = ref.read(registerControllerProvider.notifier);
     final success = await controller.generateOTP(mobile);
 
@@ -78,7 +77,6 @@ class _RegisterPersonalInfoPageState
             builder: (_) => RegisterPasswordPage(
               firstName: firstName,
               lastName: lastName,
-              email: registrationEmail,
               mobile: mobile,
             ),
           ),

@@ -20,13 +20,13 @@ class RegisterPasswordPage extends ConsumerStatefulWidget {
     super.key,
     required this.firstName,
     required this.lastName,
-    required this.email,
+    // required this.email,
     required this.mobile,
   });
 
   final String firstName;
   final String lastName;
-  final String email;
+  // final String email;
   final String mobile;
 
   @override
@@ -179,7 +179,7 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
           arguments: {
             'firstName': widget.firstName,
             'lastName': widget.lastName,
-            'email': widget.email,
+            // 'email': widget.email,
             'mobile': widget.mobile,
           },
         );

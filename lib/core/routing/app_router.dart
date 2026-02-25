@@ -68,7 +68,7 @@ class AppRouter {
           builder: (_) => RegisterPasswordPage(
             firstName: args['firstName'] ?? '',
             lastName: args['lastName'] ?? '',
-            email: args['email'] ?? '',
+            // email: args['email'] ?? '',
             mobile: args['mobile'] ?? '',
           ),
         );
