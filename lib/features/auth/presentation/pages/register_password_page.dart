@@ -94,13 +94,22 @@ class _RegisterPasswordPageState extends ConsumerState<RegisterPasswordPage> {
 
     try {
       final authRepo = await ref.read(authRepositoryProvider.future);
-      await authRepo.registerOTP(widget.mobile);
+      final response = await authRepo.registerOTP(widget.mobile);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP sent successfully!')),
-        );
-        _startOtpTimer();
+        // Check for soft-error messages (API returns 200 but with error text)
+        final msg = response.message?.toLowerCase() ?? '';
+        if (msg.contains('already exist') || msg.contains('try to login')) {
+          AppDialogs.showError(
+            context,
+            message: response.message ?? 'Registration failed',
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('OTP sent successfully!')),
+          );
+          _startOtpTimer();
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -20,6 +20,17 @@ class RegisterController extends Notifier<RegisterState> {
       final response = await repo.registerOTP(email);
 
       if (response.success) {
+        // API may return response_code 200 with a soft-error message
+        // (e.g. "Users already exists, please try to login or do forget password")
+        final msg = response.message?.toLowerCase() ?? '';
+        if (msg.contains('already exist') || msg.contains('try to login')) {
+          state = state.copyWith(
+            isLoading: false,
+            errorMessage: response.message,
+          );
+          return false;
+        }
+
         state = state.copyWith(
           isLoading: false,
           email: email,
