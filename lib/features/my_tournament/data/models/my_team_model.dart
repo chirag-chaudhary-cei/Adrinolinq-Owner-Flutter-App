@@ -31,13 +31,18 @@ class MyTeamModel {
   final List<MyTeamPlayerModel> teamPlayersList;
 
   factory MyTeamModel.fromJson(Map<String, dynamic> json) {
-    final playersList = json['teamPlayersList'] as List<dynamic>? ?? [];
+    // API returns players under 'getUsersList'
+    final playersList = (json['getUsersList'] as List<dynamic>? ??
+        json['teamPlayersList'] as List<dynamic>? ??
+        []);
     return MyTeamModel(
       id: json['id'] as int,
       creationTimestamp: json['creationTimestamp'] as String?,
       createdById: json['createdById'] as int?,
       tournamentId: json['tournamentId'] as int? ?? 0,
-      captainUserId: json['captainUserId'] as int? ?? 0,
+      // API uses ownerUserId; fall back to captainUserId if present
+      captainUserId:
+          json['ownerUserId'] as int? ?? json['captainUserId'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       minTeamSize: json['minTeamSize'] as int? ?? 1,
       maxTeamSize: json['maxTeamSize'] as int? ?? 12,
@@ -97,16 +102,29 @@ class MyTeamPlayerModel {
   }
 
   factory MyTeamPlayerModel.fromJson(Map<String, dynamic> json) {
+    // Build display name from nameTitle + firstName + lastName
+    final nameTitle = json['nameTitle'] as String? ?? '';
+    final firstName = json['firstName'] as String? ?? '';
+    final lastName = json['lastName'] as String? ?? '';
+    final fullName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final displayName = nameTitle.isNotEmpty
+        ? '$nameTitle $fullName'
+        : fullName.isNotEmpty
+            ? fullName
+            : json['player'] as String? ?? 'Unknown Player';
+
     return MyTeamPlayerModel(
       id: json['id'] as int,
       creationTimestamp: json['creationTimestamp'] as String?,
       createdById: json['createdById'] as int?,
       teamId: json['teamId'] as int? ?? 0,
       tournamentId: json['tournamentId'] as int? ?? 0,
-      playerUserId: json['playerUserId'] as int? ?? 0,
-      player: json['player'] as String? ?? 'Unknown Player',
+      // API user objects use 'id' as the user id
+      playerUserId: json['playerUserId'] as int? ?? json['id'] as int? ?? 0,
+      player: displayName,
       imageFile: json['imageFile'] as String?,
-      proficiencyLevel: json['proficiencyLevel'] as String?,
+      proficiencyLevel:
+          json['proficiencyLevel'] as String? ?? json['sportRole'] as String?,
       inviteStatus: json['inviteStatus'] as int?,
       deleted: json['deleted'] as bool? ?? false,
       status: json['status'] as bool? ?? true,

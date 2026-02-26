@@ -430,52 +430,42 @@ class _OverviewTab extends StatelessWidget {
           AppResponsive.padding(context, horizontal: 20, top: 8, bottom: 20),
       child: Column(
         children: [
-          MatchCardNew(
+          MatchCardNew.fromMatchStatus(
+            matchStatusId: 1, // Live
             team1Name: liveMatch.team1Name,
             team1Section: liveMatch.team1Section,
             team2Name: liveMatch.team2Name,
             team2Section: liveMatch.team2Section,
             headerLabel: 'Set - 3',
-            showScore: true,
             team1Score: 1,
             team2Score: 1,
-            isLive: true,
-            showLiveBadge: true,
-            actionButtonText: 'Watch Live',
-            onActionButtonTap: () {},
-            margin: EdgeInsets.zero,
-            enableShadow: false,
+            onWatchLive: () {},
           ),
           SizedBox(height: AppResponsive.s(context, 12)),
-          MatchCardNew(
+          MatchCardNew.fromMatchStatus(
+            matchStatusId: 2, // Completed
             team1Name: liveMatch.team1Name,
             team1Section: liveMatch.team1Section,
             team2Name: liveMatch.team2Name,
             team2Section: liveMatch.team2Section,
             headerLabel: 'Set - 2',
-            showScore: true,
             team1Score: 21,
             team2Score: 19,
-            statusType: MatchStatusType.completed,
-            statusText: 'Team A Is Winner',
+            winnerTeamName: 'Team A',
             matchDate: '15 Dec 2025',
-            margin: EdgeInsets.zero,
-            enableShadow: false,
           ),
           SizedBox(height: AppResponsive.s(context, 12)),
-          MatchCardNew(
+          MatchCardNew.fromMatchStatus(
+            matchStatusId: 0, // Pending
             team1Name: liveMatch.team1Name,
             team1Section: liveMatch.team1Section,
             team2Name: liveMatch.team2Name,
             team2Section: liveMatch.team2Section,
             headerLabel: 'Set - 1',
-            showScore: false,
-            actionButtonText: 'Assign Player',
-            onActionButtonTap: () {},
             matchDate: '15 Dec 2025',
             matchTime: '8:00 PM',
-            margin: EdgeInsets.zero,
-            enableShadow: false,
+            isCaptain: false,
+            onNext: () {},
           ),
         ],
       ),

@@ -42,6 +42,8 @@ class TournamentModel {
     this.tournamentSponsorsList = const [],
     this.currentRegistered = 0,
     this.equipmentsRequired,
+    this.playerAllocation = 0,
+    this.tournamentRoundsList = const [],
   });
 
   final int id;
@@ -83,6 +85,8 @@ class TournamentModel {
   final List<Map<String, dynamic>> tournamentSponsorsList;
   final int currentRegistered;
   final String? equipmentsRequired;
+  final int playerAllocation;
+  final List<Map<String, dynamic>> tournamentRoundsList;
 
   factory TournamentModel.fromJson(Map<String, dynamic> json) {
     final sponsorsList = (json['tournamentSponsorsList'] as List<dynamic>?)
@@ -147,6 +151,11 @@ class TournamentModel {
       tournamentSponsorsList: sponsorsList,
       currentRegistered: json['currentRegistered'] as int? ?? 0,
       equipmentsRequired: json['equipmentsRequired'] as String?,
+      playerAllocation: json['playerAllocation'] as int? ?? 0,
+      tournamentRoundsList: (json['tournamentRoundsList'] as List<dynamic>?)
+              ?.map((e) => e as Map<String, dynamic>)
+              .toList() ??
+          [],
     );
   }
 
@@ -191,6 +200,8 @@ class TournamentModel {
       'tournamentSponsorsList': tournamentSponsorsList,
       'currentRegistered': currentRegistered,
       'equipmentsRequired': equipmentsRequired,
+      'playerAllocation': playerAllocation,
+      'tournamentRoundsList': tournamentRoundsList,
     };
 
     if (kDebugMode) {

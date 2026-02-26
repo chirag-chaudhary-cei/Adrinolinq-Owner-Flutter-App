@@ -15,6 +15,103 @@ enum MatchStatusType {
 /// Global Match Card Widget - Highly customizable with all variations
 /// Supports: Top badges, action buttons, status badges, live matches, VS matches
 class MatchCardNew extends StatelessWidget {
+  /// Factory method to easily generate UI from matchStatusId
+  /// Statuses: 0 = Pending, 1 = Live, 2 = Completed, 3 = Abandoned
+  factory MatchCardNew.fromMatchStatus({
+    Key? key,
+    required int matchStatusId,
+    required String team1Name,
+    required String team1Section,
+    String? team1AvatarUrl,
+    required String team2Name,
+    required String team2Section,
+    String? team2AvatarUrl,
+    required String headerLabel,
+    int? team1Score,
+    int? team2Score,
+    String? matchDate,
+    String? matchTime,
+    // Role based
+    bool isCaptain = false,
+    bool teamSheetUploaded = false,
+    VoidCallback? onUploadTeamSheet,
+    // Callbacks
+    VoidCallback? onWatchLive,
+    VoidCallback? onNext,
+    VoidCallback? onTap,
+    String? winnerTeamName,
+  }) {
+    bool showScore = false;
+    bool showVS = true;
+    bool isLive = false;
+    bool showLiveBadge = false;
+    String? centerActionText;
+    VoidCallback? onCenterActionTap;
+    String? bottomActionText;
+    VoidCallback? onBottomActionTap;
+
+    switch (matchStatusId) {
+      case 1: // Live
+        showScore = true;
+        isLive = true;
+        showLiveBadge = true;
+        bottomActionText = 'Watch Live';
+        onBottomActionTap = onWatchLive;
+        break;
+      case 2: // Completed
+        showScore = true;
+        centerActionText = winnerTeamName != null
+            ? '$winnerTeamName Is Winner'
+            : 'Match Completed';
+        break;
+      case 3: // Abandoned
+        showScore = false;
+        showVS = true;
+        break;
+      case 0: // Pending
+      default:
+        showScore = false;
+        showVS = false;
+        if (isCaptain) {
+          if (!teamSheetUploaded) {
+            centerActionText = 'Upload Sheet';
+            onCenterActionTap = onUploadTeamSheet;
+          } else {
+            centerActionText = 'Sheet Uploaded';
+          }
+        } else {
+          centerActionText = 'Next';
+          onCenterActionTap = onNext;
+        }
+        break;
+    }
+
+    return MatchCardNew(
+      key: key,
+      team1Name: team1Name,
+      team1Section: team1Section,
+      team1AvatarUrl: team1AvatarUrl,
+      team2Name: team2Name,
+      team2Section: team2Section,
+      team2AvatarUrl: team2AvatarUrl,
+      headerLabel: headerLabel,
+      showScore: showScore,
+      team1Score: team1Score,
+      team2Score: team2Score,
+      matchDate: matchDate,
+      matchTime: matchTime,
+      isLive: isLive,
+      showLiveBadge: showLiveBadge,
+      showVS: showVS,
+      centerActionButtonText: centerActionText,
+      onCenterActionButtonTap: onCenterActionTap,
+      actionButtonText: bottomActionText,
+      onActionButtonTap: onBottomActionTap,
+      fullWidthActionButton: bottomActionText != null,
+      onTap: onTap,
+    );
+  }
+
   const MatchCardNew({
     super.key,
     // Team info
@@ -42,6 +139,14 @@ class MatchCardNew extends StatelessWidget {
     // Action button
     this.actionButtonText,
     this.onActionButtonTap,
+    this.fullWidthActionButton = false,
+    // Center Action Button (small pill)
+    this.centerActionButtonText,
+    this.onCenterActionButtonTap,
+    this.centerActionButtonColor,
+    this.centerActionButtonTextColor,
+    // Options
+    this.showVS = true,
     // Status badge at bottom
     this.statusType,
     this.statusText,
@@ -83,6 +188,16 @@ class MatchCardNew extends StatelessWidget {
   // Action button (e.g., "Assign Player")
   final String? actionButtonText;
   final VoidCallback? onActionButtonTap;
+  final bool fullWidthActionButton;
+
+  // Center Action button (small pill, e.g. "Next", "Upload Sheet")
+  final String? centerActionButtonText;
+  final VoidCallback? onCenterActionButtonTap;
+  final Color? centerActionButtonColor;
+  final Color? centerActionButtonTextColor;
+
+  // Options
+  final bool showVS;
 
   // Status badge at bottom
   final MatchStatusType? statusType;
@@ -181,8 +296,11 @@ class MatchCardNew extends StatelessWidget {
                     ],
                   ),
 
-                  // Action button below row (only for score mode)
-                  if (showScore && actionButtonText != null) ...[
+                  // Action button below row:
+                  // • always when fullWidthActionButton=true
+                  // • or in score mode
+                  if ((showScore || fullWidthActionButton) &&
+                      actionButtonText != null) ...[
                     SizedBox(height: AppResponsive.s(context, 12)),
                     _buildFullWidthActionButton(context),
                   ],
@@ -264,7 +382,7 @@ class MatchCardNew extends StatelessWidget {
                 fontFamily: 'SFProRounded',
                 fontSize: AppResponsive.font(context, 10),
                 fontWeight: FontWeight.w400,
-                color: Colors.black54,
+                color: Colors.white,
               ),
               textAlign: TextAlign.center,
             ),
@@ -273,6 +391,10 @@ class MatchCardNew extends StatelessWidget {
             SizedBox(height: AppResponsive.s(context, 6)),
             _buildLiveBadge(context),
           ],
+          if (centerActionButtonText != null) ...[
+            SizedBox(height: AppResponsive.s(context, 8)),
+            _buildCenterActionButton(context),
+          ],
         ],
       );
     } else {
@@ -280,26 +402,27 @@ class MatchCardNew extends StatelessWidget {
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'VS',
-            style: TextStyle(
-              fontFamily: 'SFProRounded',
-              fontSize: AppResponsive.font(context, 24),
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
+          if (showVS)
+            Text(
+              'VS',
+              style: TextStyle(
+                fontFamily: 'SFProRounded',
+                fontSize: AppResponsive.font(context, 24),
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
             ),
-          ),
-          // Action button (if provided) - small pill in center
-          if (actionButtonText != null) ...[
-            SizedBox(height: AppResponsive.s(context, 6)),
-            _buildActionButton(context),
+          // Center Action button (if provided) - small pill in center
+          if (centerActionButtonText != null && !fullWidthActionButton) ...[
+            SizedBox(height: AppResponsive.s(context, showVS ? 6 : 0)),
+            _buildCenterActionButton(context),
           ],
           // Date/Time below
           if (matchDate != null || matchTime != null) ...[
             SizedBox(height: AppResponsive.s(context, 4)),
             if (matchTime != null)
               Text(
-                'Start at $matchTime',
+                showVS ? matchTime! : 'Start at $matchTime',
                 style: TextStyle(
                   fontFamily: 'SFProRounded',
                   fontSize: AppResponsive.font(context, 12),
@@ -360,9 +483,9 @@ class MatchCardNew extends StatelessWidget {
   }
 
   /// Build small pill action button (for VS mode - e.g., "Next")
-  Widget _buildActionButton(BuildContext context) {
+  Widget _buildCenterActionButton(BuildContext context) {
     return GestureDetector(
-      onTap: onActionButtonTap,
+      onTap: onCenterActionButtonTap,
       child: Container(
         padding: AppResponsive.paddingSymmetric(
           context,
@@ -370,17 +493,17 @@ class MatchCardNew extends StatelessWidget {
           vertical: 5,
         ),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: centerActionButtonColor ?? Colors.white,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
-          actionButtonText!,
+          centerActionButtonText!,
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'SFProRounded',
             fontSize: AppResponsive.font(context, 11),
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF1377E8),
+            color: centerActionButtonTextColor ?? const Color(0xFF1377E8),
           ),
         ),
       ),

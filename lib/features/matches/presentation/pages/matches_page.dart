@@ -37,28 +37,6 @@ class _MatchesPageState extends ConsumerState<MatchesPage> {
     }
   }
 
-  MatchStatusType? _getStatusType(int matchStatusId) {
-    switch (matchStatusId) {
-      case 3:
-        return MatchStatusType.completed;
-      case 4:
-        return MatchStatusType.abandoned;
-      default:
-        return null;
-    }
-  }
-
-  String? _getStatusText(int matchStatusId) {
-    switch (matchStatusId) {
-      case 3:
-        return 'COMPLETED';
-      case 4:
-        return 'ABANDONED';
-      default:
-        return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final tournamentsAsync = ref.watch(tournamentsNotifierProvider);
@@ -187,32 +165,22 @@ class _MatchesPageState extends ConsumerState<MatchesPage> {
                       itemCount: matches.length,
                       itemBuilder: (context, index) {
                         final enrichedMatch = matches[index];
-                        final isLive = enrichedMatch.match.matchStatusId == 2;
-
-                        return MatchCardNew(
+                        return MatchCardNew.fromMatchStatus(
+                          matchStatusId: enrichedMatch.match.matchStatusId,
                           team1Name: enrichedMatch.team1Name,
                           team1Section: '',
                           team2Name: enrichedMatch.team2Name,
                           team2Section: '',
                           headerLabel:
                               "Round - ${enrichedMatch.tournamentRoundId}",
-                          showScore: isLive,
-                          team1Score: isLive ? 0 : null,
-                          team2Score: isLive ? 0 : null,
-                          matchDate:
-                              !isLive && enrichedMatch.matchDatetime.isNotEmpty
-                                  ? _formatDate(enrichedMatch.matchDatetime)
-                                  : null,
-                          matchTime:
-                              !isLive && enrichedMatch.matchDatetime.isNotEmpty
-                                  ? _formatTime(enrichedMatch.matchDatetime)
-                                  : null,
-                          isLive: isLive,
-                          showLiveBadge: isLive,
-                          statusType:
-                              _getStatusType(enrichedMatch.match.matchStatusId),
-                          statusText:
-                              _getStatusText(enrichedMatch.match.matchStatusId),
+                          team1Score: 0,
+                          team2Score: 0,
+                          matchDate: enrichedMatch.matchDatetime.isNotEmpty
+                              ? _formatDate(enrichedMatch.matchDatetime)
+                              : null,
+                          matchTime: enrichedMatch.matchDatetime.isNotEmpty
+                              ? _formatTime(enrichedMatch.matchDatetime)
+                              : null,
                         );
                       },
                     ),

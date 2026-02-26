@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors_new.dart';
 import '../../../../core/theme/app_responsive.dart';
@@ -101,6 +102,17 @@ class _TeamPlayersPageState extends ConsumerState<TeamPlayersPage> {
                   label: 'Mobile No.',
                   hintText: 'Enter mobile number',
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
+                  validator: (val) {
+                    final v = val?.trim() ?? '';
+                    if (v.isEmpty) return 'Please enter mobile number';
+                    if (v.length != 10)
+                      return 'Mobile number must be 10 digits';
+                    return null;
+                  },
                 ),
                 SizedBox(height: AppResponsive.s(context, 16)),
                 if (roles.isNotEmpty)

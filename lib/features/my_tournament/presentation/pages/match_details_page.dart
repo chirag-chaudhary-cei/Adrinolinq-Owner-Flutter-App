@@ -214,16 +214,15 @@ class _MatchDetailsPageState extends ConsumerState<MatchDetailsPage>
   Widget _buildMatchCard(BuildContext context) {
     return Padding(
       padding: AppResponsive.padding(context, horizontal: 20, top: 16),
-      child: MatchCardNew(
+      child: MatchCardNew.fromMatchStatus(
+        matchStatusId: 0, // Pending
         team1Name: 'Team A',
         team1Section: '${widget.event.registeredCount} Players',
         team2Name: 'Team B',
         team2Section: '${widget.event.registeredCount} Players',
         headerLabel: 'Round - 1',
-        showScore: false,
         matchDate: '15 Dec 2025',
         matchTime: '8:00 PM',
-        margin: EdgeInsets.zero,
       ),
     );
   }

@@ -17,6 +17,9 @@ import '../../features/my_tournament/presentation/pages/match_details_page.dart'
 import '../../features/my_tournament/presentation/pages/live_match_screen.dart';
 import '../../features/my_tournament/data/models/tournament_registration_model.dart';
 import '../../features/my_tournament/presentation/pages/player_profile_screen.dart';
+import '../../features/my_tournament/presentation/pages/player_bid_page.dart';
+import '../../features/my_tournament/presentation/pages/view_enrolled_players_page.dart';
+import '../../features/my_tournament/presentation/pages/view_tournament_rounds_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/tournament_detail_page.dart';
 import '../../features/home/data/models/tournament_model.dart';
@@ -44,7 +47,10 @@ class AppRouter {
   static const registeredTournamentDetail = '/registered-tournament-detail';
   static const matchDetails = '/match-details';
   static const liveMatchScreen = '/live-match-screen';
+  static const tournamentRounds = '/tournament-rounds';
   static const playerProfile = '/player-profile';
+  static const playerBid = '/player-bid';
+  static const viewEnrolledPlayers = '/view-enrolled-players';
 
   Route<dynamic>? onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -178,12 +184,40 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => LiveMatchScreen(event: event),
         );
+      case tournamentRounds:
+        final trArgs = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ViewTournamentRoundsPage(
+            tournamentId: trArgs['tournamentId'] as int,
+            event: trArgs['event'] as EventModel,
+          ),
+        );
       case playerProfile:
         final args = settings.arguments as Map<String, dynamic>;
         return MaterialPageRoute(
           builder: (_) => PlayerProfileScreen(
             player: args['player'] as PlayerModel,
             isOwnProfile: args['isOwnProfile'] as bool? ?? false,
+          ),
+        );
+      case playerBid:
+        final pbArgs = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => PlayerBidPage(
+            player: pbArgs?['player'] as Map<String, dynamic>? ?? const {},
+            eventTitle: pbArgs?['eventTitle'] as String? ?? '',
+            eventSport: pbArgs?['eventSport'] as String? ?? '',
+            tournamentId: pbArgs?['tournamentId'] as int? ?? 0,
+          ),
+        );
+      case viewEnrolledPlayers:
+        final vpArgs = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ViewEnrolledPlayersPage(
+            tournamentId: vpArgs['tournamentId'] as int,
+            tournamentName: vpArgs['tournamentName'] as String? ?? 'Tournament',
+            eventSport: vpArgs['eventSport'] as String? ?? '',
+            openFirst: vpArgs['openFirst'] as bool? ?? false,
           ),
         );
       default:

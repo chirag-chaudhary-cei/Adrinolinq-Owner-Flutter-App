@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -381,19 +380,28 @@ class _RegisteredTournamentDetailPageState
     BuildContext context,
     RegisteredTournamentModel registeredTournament,
   ) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('my_team_scroll'),
-      controller: _myTeamScrollController,
-      physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.only(top: _expandedTotalHeight),
-      child: Column(
-        children: [
-          _MyTeamTab(
-            registration: widget.registration,
-            tournamentId: widget.registration.tournamentId,
-          ),
-          SizedBox(height: AppResponsive.sh(context, 100)),
-        ],
+    return RefreshIndicator(
+      edgeOffset: _expandedTotalHeight,
+      onRefresh: () async {
+        try {
+          await ref
+              .refresh(myTeamProvider(widget.registration.tournamentId).future);
+        } catch (_) {}
+      },
+      child: SingleChildScrollView(
+        key: const PageStorageKey('my_team_scroll'),
+        controller: _myTeamScrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(top: _expandedTotalHeight),
+        child: Column(
+          children: [
+            _MyTeamTab(
+              registration: widget.registration,
+              tournamentId: widget.registration.tournamentId,
+            ),
+            SizedBox(height: AppResponsive.sh(context, 100)),
+          ],
+        ),
       ),
     );
   }
@@ -402,25 +410,35 @@ class _RegisteredTournamentDetailPageState
     BuildContext context,
     RegisteredTournamentModel registeredTournament,
   ) {
-    return SingleChildScrollView(
-      key: const PageStorageKey('tournament_details_scroll'),
-      controller: _tournamentDetailsScrollController,
-      physics: const ClampingScrollPhysics(),
-      padding: EdgeInsets.only(top: _expandedTotalHeight),
-      child: Column(
-        children: [
-          _TournamentDetailsTab(
-            registeredTournament: registeredTournament,
-            registration: widget.registration,
-            tournamentId: widget.registration.tournamentId,
-            showPriceBreakup: _showPriceBreakup,
-            onTogglePriceBreakup: () {
-              setState(() => _showPriceBreakup = !_showPriceBreakup);
-            },
-            isInviteOnly: !widget.event.openOrClose,
-          ),
-          SizedBox(height: AppResponsive.sh(context, 100)),
-        ],
+    return RefreshIndicator(
+      edgeOffset: _expandedTotalHeight,
+      onRefresh: () async {
+        try {
+          await ref.refresh(
+              tournamentDetailsProvider(widget.registration.tournamentId)
+                  .future);
+        } catch (_) {}
+      },
+      child: SingleChildScrollView(
+        key: const PageStorageKey('tournament_details_scroll'),
+        controller: _tournamentDetailsScrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.only(top: _expandedTotalHeight),
+        child: Column(
+          children: [
+            _TournamentDetailsTab(
+              registeredTournament: registeredTournament,
+              registration: widget.registration,
+              tournamentId: widget.registration.tournamentId,
+              showPriceBreakup: _showPriceBreakup,
+              onTogglePriceBreakup: () {
+                setState(() => _showPriceBreakup = !_showPriceBreakup);
+              },
+              isInviteOnly: !widget.event.openOrClose,
+            ),
+            SizedBox(height: AppResponsive.sh(context, 100)),
+          ],
+        ),
       ),
     );
   }
@@ -557,24 +575,42 @@ class _RegisteredTournamentDetailPageState
               child: Container(
                 padding: AppResponsive.padding(context,
                     horizontal: 20, vertical: 12, bottom: 16),
-                decoration: BoxDecoration(
+                // decoration: BoxDecoration(
                   color: Colors.transparent,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: AppResponsive.s(context, 10),
-                      offset: Offset(0, AppResponsive.s(context, -2)),
+                // ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        text: 'Manage',
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRouter.tournamentRounds,
+                            arguments: {
+                              'tournamentId': widget.registration.tournamentId,
+                              'event': widget.event,
+                            },
+                          );
+                        },
+                        isOutlined: true,
+                      ),
+                    ),
+                    SizedBox(width: AppResponsive.s(context, 12)),
+                    Expanded(
+                      child: AppButton(
+                        text: 'Matches',
+                        onPressed: () {
+                          Navigator.pushNamed(
+                            context,
+                            AppRouter.matchDetails,
+                            arguments: widget.event,
+                          );
+                        },
+                        trailingIcon: Icons.chevron_right,
+                      ),
                     ),
                   ],
-                ),
-                child: AppButton(
-                  text: 'View All Matches',
-                  onPressed: () {
-                    Navigator.pushNamed(context, AppRouter.matchDetails,
-                        arguments: widget.event);
-                  },
-                  trailingIcon: Icons.chevron_right,
-                  width: double.infinity,
                 ),
               ),
             ),
@@ -717,18 +753,24 @@ class _MyTeamTab extends ConsumerWidget {
   });
 
   final TournamentRegistrationModel registration;
-  final int tournamentId;
+    final int tournamentId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final myTeamAsync = ref.watch(myTeamProvider(tournamentId));
+    // Read playerAllocation and sport from the tournament.
+    final tournamentData =
+        ref.watch(tournamentDetailsProvider(tournamentId)).asData?.value;
+    final playerAllocation = tournamentData?.playerAllocation ?? 0;
+    final eventSport = tournamentData?.sport ?? '';
 
     return myTeamAsync.when(
       data: (team) {
         if (team == null) {
           return _buildNotAllocated(context);
         }
-        return _buildTeamContent(context, ref, team);
+        return _buildTeamContent(
+            context, ref, team, playerAllocation, eventSport);
       },
       loading: () => Padding(
         padding: AppResponsive.padding(context, horizontal: 20, top: 40),
@@ -821,8 +863,8 @@ class _MyTeamTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildTeamContent(
-      BuildContext context, WidgetRef ref, MyTeamModel team) {
+  Widget _buildTeamContent(BuildContext context, WidgetRef ref,
+      MyTeamModel team, int playerAllocation, String eventSport) {
     final activePlayers =
         team.teamPlayersList.where((p) => !p.deleted).toList();
     final currentCount = activePlayers.length;
@@ -893,6 +935,83 @@ class _MyTeamTab extends ConsumerWidget {
                 ),
               ),
             ],
+            // Player management links
+            ...[
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: const Color(0xFF0A1217).withOpacity(0.08),
+              ),
+              _buildManagementLink(
+                context,
+                icon: Icons.people_outline,
+                label: 'View All',
+                onTap: () => Navigator.of(context).pushNamed(
+                  AppRouter.viewEnrolledPlayers,
+                  arguments: {
+                    'tournamentId': tournamentId,
+                    'tournamentName': team.name,
+                    'eventSport': eventSport,
+                  },
+                ),
+              ),
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: const Color(0xFF0A1217).withOpacity(0.08),
+              ),
+              _buildManagementLink(
+                context,
+                icon: Icons.sports,
+                label: 'Participated Player',
+                onTap: () => Navigator.of(context).pushNamed(
+                  AppRouter.playerBid,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Tappable link row for the player-management section (View All / Participated Players).
+  Widget _buildManagementLink(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: AppResponsive.padding(context, vertical: 14),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: AppResponsive.icon(context, 20),
+              color: AppColors.accentBlue,
+            ),
+            SizedBox(width: AppResponsive.s(context, 10)),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: 'SFProRounded',
+                  fontSize: AppResponsive.font(context, 14),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.accentBlue,
+                  decoration: TextDecoration.underline,
+                  decorationColor: AppColors.accentBlue,
+                ),
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: AppResponsive.icon(context, 20),
+              color: AppColors.accentBlue,
+            ),
           ],
         ),
       ),
@@ -972,8 +1091,8 @@ class _TeamPlayerCard extends ConsumerWidget {
                         ],
                       ],
                     ),
-                    SizedBox(height: AppResponsive.s(context, 4)),
-                    if (isCaptainPlayer)
+                    if (isCaptainPlayer) ...[
+                      SizedBox(height: AppResponsive.s(context, 4)),
                       Text(
                         'Captain',
                         style: TextStyle(
@@ -982,28 +1101,17 @@ class _TeamPlayerCard extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                           color: AppColors.accentBlue,
                         ),
-                      )
-                    else
-                      Text(
-                        player.inviteStatusText,
-                        style: TextStyle(
-                          fontFamily: 'SFProRounded',
-                          fontSize: AppResponsive.font(context, 13),
-                          fontWeight: FontWeight.w500,
-                          color: _statusColor(player.inviteStatus),
-                        ),
                       ),
+                    ],
                   ],
                 ),
               ),
               SizedBox(width: AppResponsive.s(context, 8)),
-              // Status icon
+              // Status icon (captain only)
               if (isCaptainPlayer)
                 Icon(Icons.star,
                     size: AppResponsive.icon(context, 22),
-                    color: AppColors.accentBlue)
-              else
-                _statusIcon(context, player.inviteStatus),
+                    color: AppColors.accentBlue),
             ],
           ),
         ),
