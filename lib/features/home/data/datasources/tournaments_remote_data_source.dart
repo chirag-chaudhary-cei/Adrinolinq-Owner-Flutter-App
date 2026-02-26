@@ -71,6 +71,9 @@ class TournamentsRemoteDataSource {
         'status': true,
         'deleted': false,
         'enrollmentType': 2,
+        'paymentStatus': 1,
+        'myTournaments': 0,
+        'roleId': 5,
       };
 
       final response = await _apiClient.post(
@@ -174,8 +177,8 @@ class TournamentsRemoteDataSource {
       final payload = {
         'status': true,
         'deleted': false,
-        // 'enrollmentType': 2,
-        'myTournaments': true,
+        'myTournaments': 1,
+        'roleId': 5,
       };
 
       final response = await _apiClient.post(

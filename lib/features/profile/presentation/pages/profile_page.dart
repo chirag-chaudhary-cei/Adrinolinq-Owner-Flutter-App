@@ -13,6 +13,8 @@ import '../../../../core/widgets/app_dialogs.dart';
 import '../../../../core/widgets/app_loading.dart';
 import '../../data/models/profile_model.dart';
 import '../providers/profile_providers.dart';
+import '../../../home/presentation/providers/home_provider.dart';
+import 'package:provider/provider.dart' as legacy_provider;
 
 /// Profile Page - Modern UI with gradient header and menu items
 class ProfilePage extends ConsumerStatefulWidget {
@@ -229,6 +231,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     );
                     if (result == true && mounted) {
                       _loadProfile();
+                      legacy_provider.Provider.of<HomeProvider>(context,
+                              listen: false)
+                          .reloadProfile();
                     }
                   },
                 ),

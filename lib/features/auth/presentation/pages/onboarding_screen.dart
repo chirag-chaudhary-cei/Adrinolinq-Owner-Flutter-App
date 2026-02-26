@@ -146,18 +146,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     if (roleIds.length <= 1) return;
 
-    final roleNames = roleIds.map((id) {
-      switch (id) {
-        case '3':
-          return 'Organizer';
-        case '4':
-          return 'Player';
-        case '5':
-          return 'Owner';
-        default:
-          return '';
-      }
-    }).where((name) => name.isNotEmpty).toList();
+    final roleNames = roleIds
+        .map((id) {
+          switch (id) {
+            case '3':
+              return 'Organizer';
+            case '4':
+              return 'Player';
+            case '5':
+              return 'Owner';
+            default:
+              return '';
+          }
+        })
+        .where((name) => name.isNotEmpty)
+        .toList();
 
     if (!mounted || roleNames.length <= 1) return;
 
@@ -975,24 +978,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         break;
     }
 
-    // Save behavior based on mode:
-    // - Onboarding mode: Save on every Next (progressive save) - but only if there are changes
-    // - Edit mode: Don't save until final Save button (save all at once)
-    if (!widget.isEditMode) {
-      // Check if current phase has changes
-      final hasChanges = _hasCurrentPhaseChanges();
+    // Save progressive changes
+    // Check if current phase has changes
+    final hasChanges = _hasCurrentPhaseChanges();
 
-      if (hasChanges) {
-        print(
-          '📝 [ChangeTracking] Phase $_currentPhase has changes, saving...',
-        );
-        final saved = await _saveCurrentPhase();
-        if (!saved) return; // Stop if save failed
-      } else {
-        print(
-          '✅ [ChangeTracking] Phase $_currentPhase has no changes, skipping save',
-        );
-      }
+    if (hasChanges) {
+      print(
+        '📝 [ChangeTracking] Phase $_currentPhase has changes, saving...',
+      );
+      final saved = await _saveCurrentPhase();
+      if (!saved) return; // Stop if save failed
+    } else {
+      print(
+        '✅ [ChangeTracking] Phase $_currentPhase has no changes, skipping save',
+      );
     }
 
     // Move to next phase
@@ -1278,78 +1277,72 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       // In edit mode, save profile data first (all phases at once) - but only if there are changes
       if (widget.isEditMode) {
-        // Check if any profile data has changed across all phases
+        // Check if any profile data has changed across all phases (for logging)
         final hasProfileChanges = _hasCurrentPhaseChanges() ||
             (_currentPhase == 0 && _hasPhase0Changes()) ||
             (_currentPhase == 1 && _hasPhase1Changes());
 
-        if (hasProfileChanges || _initialProfileData.isEmpty) {
-          print(
-            '📝 [ChangeTracking] Edit mode: Profile has changes, saving...',
-          );
+        print(
+          '📝 [ChangeTracking] Edit mode: Save button clicked, force saving (changes detected: $hasProfileChanges)...',
+        );
 
-          // Build request with ONLY changed fields + id
-          final request = _buildChangedFieldsRequest(int.parse(userId));
+        // Build request with ALL form data + id
+        final request = _buildChangedFieldsRequest(int.parse(userId));
 
-          // Call API
-          final repository = ref.read(onboardingRepositoryProvider);
-          final response = await repository.saveUser(request);
+        // Call API
+        final repository = ref.read(onboardingRepositoryProvider);
+        final response = await repository.saveUser(request);
 
-          if (!response.success) {
-            setState(() => _isLoading = false);
-            if (mounted) {
-              await AppDialogs.showError(
-                context,
-                message: response.message ?? 'Failed to save profile',
-                title: 'Error',
-              );
-            }
-            return;
-          }
-
-          // Refresh profile cache to ensure UI shows updated data and update initial data
-          try {
-            final profileRepo = ref.read(profileRepositoryProvider);
-            final updatedProfile = await profileRepo.getProfile();
-
-            // Update initial data with saved values for next change detection
-            if (mounted) {
-              setState(() {
-                _initialProfileData = {
-                  'nameTitleId': updatedProfile.nameTitleId,
-                  'firstName': updatedProfile.firstName,
-                  'lastName': updatedProfile.lastName,
-                  'mobile': updatedProfile.mobile,
-                  'email': updatedProfile.email,
-                  'dob': updatedProfile.dob,
-                  'genderId': updatedProfile.genderId,
-                  'bloodGroupId': updatedProfile.bloodGroupId,
-                  'height': updatedProfile.height?.toString(),
-                  'weight': updatedProfile.weight?.toString(),
-                  'tshirtSizeId': updatedProfile.tshirtSizeId,
-                  'foodPreferenceId': updatedProfile.foodPreferenceId,
-                  'street': updatedProfile.street,
-                  'countryId': updatedProfile.countryId,
-                  'stateId': updatedProfile.stateId,
-                  'districtId': updatedProfile.districtId,
-                  'cityId': updatedProfile.cityId,
-                  'region': updatedProfile.region,
-                  'pincode': updatedProfile.pincode,
-                  'imageFile': updatedProfile.imageFile,
-                };
-              });
-            }
-            print(
-              '✅ [OnboardingScreen] Profile cache refreshed after edit save',
+        if (!response.success) {
+          setState(() => _isLoading = false);
+          if (mounted) {
+            await AppDialogs.showError(
+              context,
+              message: response.message ?? 'Failed to save profile',
+              title: 'Error',
             );
-            print('📊 [ChangeTracking] Initial data updated after edit save');
-          } catch (e) {
-            print('⚠️ [OnboardingScreen] Could not refresh profile cache: $e');
           }
-        } else {
+          return;
+        }
+
+        // Refresh profile cache to ensure UI shows updated data and update initial data
+        try {
+          final profileRepo = ref.read(profileRepositoryProvider);
+          final updatedProfile = await profileRepo.getProfile();
+
+          // Update initial data with saved values for next change detection
+          if (mounted) {
+            setState(() {
+              _initialProfileData = {
+                'nameTitleId': updatedProfile.nameTitleId,
+                'firstName': updatedProfile.firstName,
+                'lastName': updatedProfile.lastName,
+                'mobile': updatedProfile.mobile,
+                'email': updatedProfile.email,
+                'dob': updatedProfile.dob,
+                'genderId': updatedProfile.genderId,
+                'bloodGroupId': updatedProfile.bloodGroupId,
+                'height': updatedProfile.height?.toString(),
+                'weight': updatedProfile.weight?.toString(),
+                'tshirtSizeId': updatedProfile.tshirtSizeId,
+                'foodPreferenceId': updatedProfile.foodPreferenceId,
+                'street': updatedProfile.street,
+                'countryId': updatedProfile.countryId,
+                'stateId': updatedProfile.stateId,
+                'districtId': updatedProfile.districtId,
+                'cityId': updatedProfile.cityId,
+                'region': updatedProfile.region,
+                'pincode': updatedProfile.pincode,
+                'imageFile': updatedProfile.imageFile,
+              };
+            });
+          }
           print(
-            '✅ [ChangeTracking] Edit mode: No profile changes detected, skipping save',
+            '✅ [OnboardingScreen] Profile cache refreshed after edit save',
           );
+          print('📊 [ChangeTracking] Initial data updated after edit save');
+        } catch (e) {
+          print('⚠️ [OnboardingScreen] Could not refresh profile cache: $e');
         }
       }
 
@@ -1375,12 +1368,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         // Navigate based on mode
         if (mounted) {
           if (widget.isEditMode) {
-            // Clear profile cache to force fresh fetch
-            final profileDataSource = ref.read(profileRemoteDataSourceProvider);
-            await profileDataSource.clearProfileCache();
-            print(
-              '✅ [OnboardingScreen] Profile cache cleared - will refresh on profile screen',
-            );
             // In edit mode, just go back to profile page (it will auto-reload)
             Navigator.of(context)
                 .pop(true); // Pass true to indicate data changed
@@ -1420,63 +1407,63 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         backgroundColor: Colors.white,
         body: SafeArea(
           child: Column(
-          children: [
-            // Header with back button and title only
-            _buildHeaderTitle(context),
-            // Divider FIRST as per UI
-            Container(
-              height: 1,
-              color: Colors.grey.shade200,
-            ),
-            // Progress bar AFTER divider
-            Padding(
-              padding:
-                  AppResponsive.padding(context, horizontal: 24, vertical: 16),
-              child: _buildProgressIndicator(context),
-            ),
-            // Content
-            Expanded(
-              child: _isLoadingInitialData
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AppLoading.circular(
-                            color: AppColors.accentBlue,
-                            size: AppResponsive.s(context, 50),
-                          ),
-                          SizedBox(height: AppResponsive.s(context, 16)),
-                          Text(
-                            'Loading profile data...',
-                            style: TextStyle(
-                              fontFamily: 'SFProRounded',
-                              fontSize: AppResponsive.font(context, 16),
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondaryLight,
+            children: [
+              // Header with back button and title only
+              _buildHeaderTitle(context),
+              // Divider FIRST as per UI
+              Container(
+                height: 1,
+                color: Colors.grey.shade200,
+              ),
+              // Progress bar AFTER divider
+              Padding(
+                padding: AppResponsive.padding(context,
+                    horizontal: 24, vertical: 16),
+                child: _buildProgressIndicator(context),
+              ),
+              // Content
+              Expanded(
+                child: _isLoadingInitialData
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppLoading.circular(
+                              color: AppColors.accentBlue,
+                              size: AppResponsive.s(context, 50),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: AppResponsive.s(context, 16)),
+                            Text(
+                              'Loading profile data...',
+                              style: TextStyle(
+                                fontFamily: 'SFProRounded',
+                                fontSize: AppResponsive.font(context, 16),
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondaryLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: AppResponsive.padding(context, horizontal: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: AppResponsive.s(context, 8)),
+                            // Phase content
+                            _buildPhaseContent(context),
+                            SizedBox(height: AppResponsive.s(context, 32)),
+                          ],
+                        ),
                       ),
-                    )
-                  : SingleChildScrollView(
-                      padding: AppResponsive.padding(context, horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(height: AppResponsive.s(context, 8)),
-                          // Phase content
-                          _buildPhaseContent(context),
-                          SizedBox(height: AppResponsive.s(context, 32)),
-                        ],
-                      ),
-                    ),
-            ),
-            if (_showCrossRoleInfo) _buildCrossRoleInfo(context),
-            // Bottom buttons using global AppButtonPair
-            _buildBottomButtons(context),
-          ],
+              ),
+              if (_showCrossRoleInfo) _buildCrossRoleInfo(context),
+              // Bottom buttons using global AppButtonPair
+              _buildBottomButtons(context),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -1739,12 +1726,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ),
                     SizedBox(height: AppResponsive.s(context, 10)),
-                    Text(
-                      'Upload your Image',
-                      style: TextStyle(
-                        fontSize: AppResponsive.font(context, 16),
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
+                    RichText(
+                      text: TextSpan(
+                        text: 'Upload Image',
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(context, 16),
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                        children: const [
+                          TextSpan(
+                            text: ' *',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(height: AppResponsive.s(context, 10)),

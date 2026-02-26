@@ -59,39 +59,29 @@ class SaveUserRequest extends Equatable {
       'roleId': roleId,
     };
 
-    if (nameTitleId != null && nameTitleId! > 0)
-      map['nameTitleId'] = nameTitleId;
-    if (firstName != null && firstName!.isNotEmpty)
-      map['firstName'] = firstName;
-    if (middleName != null && middleName!.trim().isNotEmpty) {
-      map['middleName'] = middleName!.trim();
-    }
-    if (lastName != null && lastName!.isNotEmpty) map['lastName'] = lastName;
-    if (mobile != null && mobile!.isNotEmpty) map['mobile'] = mobile;
-    if (email != null && email!.isNotEmpty) map['email'] = email;
-    if (dob != null && dob!.trim().isNotEmpty) map['dob'] = dob;
-    if (genderId != null && genderId! > 0) map['genderId'] = genderId;
-    if (bloodGroupId != null && bloodGroupId! > 0) {
-      map['bloodGroupId'] = bloodGroupId;
-    }
-    if (height != null && height! > 0) map['height'] = height;
-    if (weight != null && weight! > 0) map['weight'] = weight;
-    if (tshirtSizeId != null && tshirtSizeId! > 0) {
-      map['tshirtSizeId'] = tshirtSizeId;
-    }
-    if (street != null && street!.trim().isNotEmpty) map['street'] = street;
-    if (countryId != null && countryId! > 0) map['countryId'] = countryId;
-    if (stateId != null && stateId! > 0) map['stateId'] = stateId;
-    if (districtId != null && districtId! > 0) map['districtId'] = districtId;
-    if (cityId != null && cityId! > 0) map['cityId'] = cityId;
-    if (region != null && region!.trim().isNotEmpty) map['region'] = region;
-    if (pincode != null && pincode! > 0) map['pincode'] = pincode;
-    if (foodPreferenceId != null && foodPreferenceId! > 0) {
-      map['foodPreferenceId'] = foodPreferenceId;
-    }
-    if (imageFile != null && imageFile!.trim().isNotEmpty) {
-      map['imageFile'] = imageFile;
-    }
+    // Always send the fields because the user might be clearing them out.
+    // If the field is null, we pass it as null or empty string so the API clears it.
+    map['nameTitleId'] = nameTitleId;
+    map['firstName'] = firstName;
+    map['middleName'] = middleName;
+    map['lastName'] = lastName;
+    map['mobile'] = mobile;
+    map['email'] = email;
+    map['dob'] = dob;
+    map['genderId'] = genderId;
+    map['bloodGroupId'] = bloodGroupId;
+    map['height'] = height;
+    map['weight'] = weight;
+    map['tshirtSizeId'] = tshirtSizeId;
+    map['street'] = street;
+    map['countryId'] = countryId;
+    map['stateId'] = stateId;
+    map['districtId'] = districtId;
+    map['cityId'] = cityId;
+    map['region'] = region;
+    map['pincode'] = pincode;
+    map['foodPreferenceId'] = foodPreferenceId;
+    map['imageFile'] = imageFile;
 
     return map;
   }

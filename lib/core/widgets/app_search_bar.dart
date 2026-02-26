@@ -76,13 +76,11 @@ class _AppSearchBarState extends State<AppSearchBar>
           height: AppResponsive.s(context, 48),
           decoration: BoxDecoration(
             borderRadius: AppResponsive.borderRadius(context, 46),
-            color: const Color(0xFFF6F6F6),
-            // border: _isFocused
-            //     ? Border.all(
-            //         color: AppColors.primary,
-            //         width: AppResponsive.thickness(context, 1),
-            //       )
-            //     : null,
+            color: Colors.white,
+            border: Border.all(
+              color: const Color(0xFF000000),
+              width: AppResponsive.thickness(context, 2),
+            ),
             // boxShadow: _isFocused
             //     ? [
             //         BoxShadow(

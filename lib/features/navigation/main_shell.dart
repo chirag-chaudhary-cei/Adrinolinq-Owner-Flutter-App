@@ -22,6 +22,7 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  final HomeProvider _homeProvider = HomeProvider();
 
   late final List<Widget> _pages;
 
@@ -37,7 +38,16 @@ class _MainShellState extends State<MainShell> {
     ];
   }
 
+  @override
+  void dispose() {
+    _homeProvider.dispose();
+    super.dispose();
+  }
+
   void _onTabTapped(int index) {
+    if (index == 0) {
+      _homeProvider.reloadProfile();
+    }
     setState(() {
       _currentIndex = index;
     });
@@ -55,21 +65,24 @@ class _MainShellState extends State<MainShell> {
       ),
     );
 
-    return Scaffold(
-      backgroundColor: AppColors.backgroundLight,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
+    return ChangeNotifierProvider<HomeProvider>.value(
+      value: _homeProvider,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundLight,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
+        bottomNavigationBar: AppBottomNavBar(
+          currentIndex: _currentIndex,
+          onTap: _onTabTapped,
+        ),
       ),
     );
   }
 }
 
-/// Home Tab wrapper with Provider
+/// Home Tab wrapper
 class _HomeTab extends StatelessWidget {
   const _HomeTab({required this.onNavigateToTab});
 
@@ -77,13 +90,10 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => HomeProvider(),
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundLight,
-        body: SafeArea(
-          child: HomeContent(onNavigateToProfile: () => onNavigateToTab(4)),
-        ),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundLight,
+      body: SafeArea(
+        child: HomeContent(onNavigateToProfile: () => onNavigateToTab(4)),
       ),
     );
   }
