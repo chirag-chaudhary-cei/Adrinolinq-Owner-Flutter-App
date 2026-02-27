@@ -29,11 +29,11 @@ DateTime? _parseApiDate(String dateStr) {
   }
 }
 
-/// Format date as 'DD MMM YYYY'
+/// Format date as 'DD-MMM-YYYY' (e.g. 21-FEB-2026) — matches home screen format
 String _formatDate(String dateStr) {
   final date = _parseApiDate(dateStr);
   if (date == null) return dateStr;
-  return DateFormat('dd MMM yyyy').format(date);
+  return DateFormat('dd-MMM-yyyy').format(date).toUpperCase();
 }
 
 /// Format time as 'hh:mm AM/PM'
@@ -386,17 +386,10 @@ class _TournamentCard extends ConsumerWidget {
     final dataSource = ref.read(tournamentsRemoteDataSourceProvider);
     final imageUrl = dataSource.getTournamentImageUrl(tournament.imageFile);
 
-    final enrolledPlayersAsync =
-        ref.watch(enrolledPlayersProvider(tournament.id));
-    final registeredCount = enrolledPlayersAsync.maybeWhen(
-      data: (players) => players.length,
-      orElse: () => 0,
-    );
-
     final event = _convertToEventModel(
       tournament: tournament,
       imageUrl: imageUrl,
-      registeredCount: registeredCount,
+      registeredCount: tournament.currentRegistered,
     );
 
     return EventCard(

@@ -30,7 +30,10 @@ class MyTournamentRemoteDataSource {
 
     if (response.data is Map<String, dynamic>) {
       final responseCode = response.data['response_code'] as String?;
-      if (responseCode != null && responseCode != '200') {
+      // Accept both 200 (OK) and 201 (Created) as successful responses
+      if (responseCode != null &&
+          responseCode != '200' &&
+          responseCode != '201') {
         final obj = response.data['obj'];
         final errorMessage = obj?.toString() ?? fallbackError;
         throw Exception(errorMessage);
@@ -443,6 +446,139 @@ class MyTournamentRemoteDataSource {
     } catch (e) {
       if (kDebugMode) {
         print('❌ [MyTournamentDS] Failed to load enrolled players: $e');
+      }
+      if (e is DioException) {
+        throw Exception(_handleError(e));
+      }
+      rethrow;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getCurrentAuctionTimeline(
+    int tournamentId,
+  ) async {
+    try {
+      if (kDebugMode) {
+        print(
+          '🔍 [MyTournamentDS] Fetching player auction bids for tournamentId: $tournamentId',
+        );
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getCurrentAuctionTimeline,
+        data: {'tournamentId': tournamentId},
+      );
+
+      _validateResponse(response, 'Failed to load player auction bids');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'];
+
+      if (obj == null) {
+        if (kDebugMode) {
+          print('⚠️ [MyTournamentDS] No player auction data found');
+        }
+        return [];
+      }
+
+      // Always return the auction item(s) intact so the page can parse
+      // baseBid, bidGap, playerUserId, and playerAuctionBidsList itself.
+      final List<Map<String, dynamic>> auctionItems;
+      if (obj is List) {
+        auctionItems = obj.map((e) => e as Map<String, dynamic>).toList();
+      } else if (obj is Map<String, dynamic>) {
+        auctionItems = [obj];
+      } else {
+        auctionItems = [];
+      }
+
+      if (kDebugMode) {
+        print('✅ [MyTournamentDS] Loaded ${auctionItems.length} auction item(s)');
+      }
+      return auctionItems;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [MyTournamentDS] Failed to load player auction bids: $e');
+      }
+      if (e is DioException) {
+        throw Exception(_handleError(e));
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> savePlayerAuctionBid(
+      int playerAuctionId, int points, int tournamentTeamId) async {
+    try {
+      if (kDebugMode) {
+        print(
+          '🔍 [MyTournamentDS] Saving player auction bid: playerAuctionId=$playerAuctionId, points=$points, tournamentTeamId=$tournamentTeamId',
+        );
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.savePlayerAuctionBids,
+        data: {
+          'playerAuctionId': playerAuctionId,
+          'points': points,
+          'tournamentTeamId': tournamentTeamId,
+        },
+      );
+
+      _validateResponse(response, 'Failed to save player auction bid');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'] as Map<String, dynamic>;
+
+      if (kDebugMode) {
+        print('✅ [MyTournamentDS] Player auction bid saved successfully');
+      }
+
+      return obj;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [MyTournamentDS] Failed to save player auction bid: $e');
+      }
+      if (e is DioException) {
+        throw Exception(_handleError(e));
+      }
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserDetails(int userId) async {
+    try {
+      if (kDebugMode) {
+        print('🔍 [MyTournamentDS] Fetching user details for userId: $userId');
+      }
+
+      final response = await _apiClient.post(
+        ApiEndpoints.getUsersList,
+        data: {
+          'id': userId,
+          'deleted': false,
+          'status': true,
+        },
+      );
+
+      _validateResponse(response, 'Failed to fetch user details');
+
+      final data = response.data as Map<String, dynamic>;
+      final obj = data['obj'];
+
+      if (obj is Map<String, dynamic>) {
+        if (kDebugMode) {
+          print('✅ [MyTournamentDS] User details fetched successfully');
+        }
+        return obj;
+      } else if (obj is List && obj.isNotEmpty) {
+        return obj.first as Map<String, dynamic>;
+      }
+
+      throw Exception('User not found');
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [MyTournamentDS] Failed to fetch user details: $e');
       }
       if (e is DioException) {
         throw Exception(_handleError(e));

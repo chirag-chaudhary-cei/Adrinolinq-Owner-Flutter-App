@@ -208,6 +208,7 @@ class AppRouter {
             eventTitle: pbArgs?['eventTitle'] as String? ?? '',
             eventSport: pbArgs?['eventSport'] as String? ?? '',
             tournamentId: pbArgs?['tournamentId'] as int? ?? 0,
+            tournamentTeamId: pbArgs?['tournamentTeamId'] as int? ?? 0,
           ),
         );
       case viewEnrolledPlayers:

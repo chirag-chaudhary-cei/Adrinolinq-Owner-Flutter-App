@@ -17,6 +17,7 @@ import '../../../../core/widgets/generic_form_dialog.dart';
 import '../../../../core/widgets/app_text_field_with_label.dart';
 import '../../../../core/widgets/app_dropdown.dart';
 import '../../data/models/tournament_model.dart';
+import '../../data/models/team_player_model.dart';
 import '../providers/tournaments_providers.dart';
 import 'create_team_page.dart';
 import '../../../my_tournament/presentation/providers/my_tournament_providers.dart';
@@ -86,6 +87,7 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
   bool _isLoading = true;
   bool _isRegistrationClosed = false;
   int? _selectedTeamId;
+  List<int> _selectedPlayerIds = [];
   String? _lastRegistrationCloseDate;
   bool? _lastOpenOrClose;
 
@@ -187,6 +189,26 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     }
   }
 
+  Future<void> _showSelectPlayersBottomSheet(int teamId) async {
+    final List<int> tempSelected = List.from(_selectedPlayerIds);
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _SelectPlayersBottomSheet(
+        teamId: teamId,
+        initialSelectedIds: tempSelected,
+        onSubmit: (selectedIds) {
+          setState(() {
+            _selectedPlayerIds = selectedIds;
+          });
+          Navigator.pop(sheetContext);
+        },
+      ),
+    );
+  }
+
   Future<void> _showInviteCodeDialog() async {
     // Fetch current tournament data
     final tournament =
@@ -197,169 +219,199 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
     final parentContext = context;
 
     await showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.8),
-      builder: (dialogContext) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.circular(AppResponsive.radius(dialogContext, 32)),
-        ),
-        insetPadding: EdgeInsets.all(AppResponsive.p(dialogContext, 20)),
-        child: Padding(
-          padding: EdgeInsets.all(AppResponsive.p(dialogContext, 24)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: AppResponsive.s(dialogContext, 100),
-                height: AppResponsive.s(dialogContext, 50),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned(
-                      left: 0,
-                      child: CircleAvatar(
-                        radius: AppResponsive.s(dialogContext, 22),
-                        backgroundImage:
-                            const AssetImage('assets/images/demo1.jpg'),
-                      ),
-                    ),
-                    Positioned(
-                      child: CircleAvatar(
-                        radius: AppResponsive.s(dialogContext, 22),
-                        backgroundImage:
-                            const AssetImage('assets/images/demo1.jpg'),
-                      ),
-                    ),
-                    Positioned(
-                      right: 0,
-                      child: CircleAvatar(
-                        radius: AppResponsive.s(dialogContext, 22),
-                        backgroundImage:
-                            const AssetImage('assets/images/demo1.jpg'),
-                      ),
-                    ),
-                  ],
+        context: context,
+        barrierColor: Colors.black.withOpacity(0.8),
+        builder: (dialogContext) =>
+            StatefulBuilder(builder: (dialogContext, setDialogState) {
+              String? _inviteCodeError;
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                      AppResponsive.radius(dialogContext, 32)),
                 ),
-              ),
-              SizedBox(height: AppResponsive.s(dialogContext, 16)),
-              Text(
-                'Only Invited !',
-                style: TextStyle(
-                  fontFamily: 'SFProRounded',
-                  fontSize: AppResponsive.font(dialogContext, 20),
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              SizedBox(height: AppResponsive.s(dialogContext, 8)),
-              Text(
-                'Only Invited join this Tournaments. Please\nEnter a Invited Code',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'SFProRounded',
-                  fontSize: AppResponsive.font(dialogContext, 14),
-                  fontWeight: FontWeight.w400,
-                  color: const Color(0xFF5C5C5C),
-                ),
-              ),
-              SizedBox(height: AppResponsive.s(dialogContext, 20)),
-              AppTextFieldWithLabel(
-                controller: inviteCodeController,
-                label: 'Invited Code',
-                hintText: 'Invited Code',
-              ),
-              SizedBox(height: AppResponsive.s(dialogContext, 24)),
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'Cancel',
-                      onPressed: () => Navigator.pop(dialogContext),
-                      isOutlined: true,
-                      borderColor: Colors.grey.shade300,
-                      textColor: Colors.black,
-                    ),
-                  ),
-                  SizedBox(width: AppResponsive.s(dialogContext, 12)),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Join',
-                      onPressed: () async {
-                        final inputCode = inviteCodeController.text.trim();
-                        if (inputCode.isEmpty) {
-                          ScaffoldMessenger.of(dialogContext).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter invite code'),
+                insetPadding:
+                    EdgeInsets.all(AppResponsive.p(dialogContext, 20)),
+                child: Padding(
+                  padding: EdgeInsets.all(AppResponsive.p(dialogContext, 24)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: AppResponsive.s(dialogContext, 100),
+                        height: AppResponsive.s(dialogContext, 50),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              left: 0,
+                              child: CircleAvatar(
+                                radius: AppResponsive.s(dialogContext, 22),
+                                backgroundImage:
+                                    const AssetImage('assets/images/demo1.jpg'),
+                              ),
+                            ),
+                            Positioned(
+                              child: CircleAvatar(
+                                radius: AppResponsive.s(dialogContext, 22),
+                                backgroundImage:
+                                    const AssetImage('assets/images/demo1.jpg'),
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              child: CircleAvatar(
+                                radius: AppResponsive.s(dialogContext, 22),
+                                backgroundImage:
+                                    const AssetImage('assets/images/demo1.jpg'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: AppResponsive.s(dialogContext, 16)),
+                      Text(
+                        'Only Invited !',
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(dialogContext, 20),
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                      SizedBox(height: AppResponsive.s(dialogContext, 8)),
+                      Text(
+                        'Only Invited join this Tournaments. Please\nEnter a Invited Code',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(dialogContext, 14),
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF5C5C5C),
+                        ),
+                      ),
+                      SizedBox(height: AppResponsive.s(dialogContext, 20)),
+                      AppTextFieldWithLabel(
+                        controller: inviteCodeController,
+                        label: 'Invite Code',
+                        hintText: 'Enter invite code',
+                      ),
+                      Builder(
+                        builder: (context) {
+                          if (_inviteCodeError == null)
+                            return const SizedBox.shrink();
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              top: AppResponsive.s(context, 6),
+                              left: AppResponsive.s(context, 4),
+                            ),
+                            child: Text(
+                              _inviteCodeError!,
+                              style: TextStyle(
+                                fontFamily: 'SFProRounded',
+                                fontSize: AppResponsive.font(context, 12),
+                                fontWeight: FontWeight.w500,
+                                color: Colors.red.shade600,
+                              ),
                             ),
                           );
-                          return;
-                        }
+                        },
+                      ),
+                      SizedBox(height: AppResponsive.s(dialogContext, 24)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: AppButton(
+                              text: 'Cancel',
+                              onPressed: () => Navigator.pop(dialogContext),
+                              isOutlined: true,
+                              borderColor: Colors.grey.shade300,
+                              textColor: Colors.black,
+                            ),
+                          ),
+                          SizedBox(width: AppResponsive.s(dialogContext, 12)),
+                          Expanded(
+                            child: AppButton(
+                              text: 'Join',
+                              onPressed: () async {
+                                final inputCode =
+                                    inviteCodeController.text.trim();
+                                if (inputCode.isEmpty) {
+                                  setDialogState(() {
+                                    _inviteCodeError =
+                                        'Please enter the invite code';
+                                  });
+                                  return;
+                                }
+                                setDialogState(() => _inviteCodeError = null);
 
-                        Navigator.pop(dialogContext);
+                                Navigator.pop(dialogContext);
 
-                        AppLoading.showDialog(
-                          parentContext,
-                          message: 'Verifying invite code...',
-                        );
+                                AppLoading.showDialog(
+                                  parentContext,
+                                  message: 'Verifying invite code...',
+                                );
 
-                        try {
-                          final dataSource =
-                              ref.read(tournamentsRemoteDataSourceProvider);
-                          final result = await dataSource
-                              .saveTournamentRegistrationWithInviteCode(
-                            tournamentId: tournament.id,
-                            teamId: _selectedTeamId!,
-                            inviteCode: inputCode,
-                          );
+                                try {
+                                  final dataSource = ref.read(
+                                      tournamentsRemoteDataSourceProvider);
+                                  final result = await dataSource
+                                      .saveTournamentRegistrationWithInviteCode(
+                                    tournamentId: tournament.id,
+                                    teamId: _selectedTeamId!,
+                                    inviteCode: inputCode,
+                                  );
 
-                          if (kDebugMode) {
-                            print('🔍 [InviteCode] API result: $result');
-                          }
+                                  if (kDebugMode) {
+                                    print(
+                                        '🔍 [InviteCode] API result: $result');
+                                  }
 
-                          if (!mounted) return;
-                          AppLoading.dismissDialog(parentContext);
+                                  if (!mounted) return;
+                                  AppLoading.dismissDialog(parentContext);
 
-                          if (result == null) {
-                            AppDialogs.showError(
-                              parentContext,
-                              message: 'Invalid invite code. Please try again.',
-                            );
-                            return;
-                          }
+                                  if (result == null) {
+                                    AppDialogs.showError(
+                                      parentContext,
+                                      message:
+                                          'Invalid invite code. Please try again.',
+                                    );
+                                    return;
+                                  }
 
-                          ref.invalidate(myTournamentRegistrationsProvider);
+                                  ref.invalidate(
+                                      myTournamentRegistrationsProvider);
 
-                          await AppDialogs.showSuccess(
-                            parentContext,
-                            title: 'Registration Successful!',
-                            message:
-                                'You have successfully registered for ${tournament.name}.',
-                          );
+                                  await AppDialogs.showSuccess(
+                                    parentContext,
+                                    title: 'Registration Successful!',
+                                    message:
+                                        'You have successfully registered for ${tournament.name}.',
+                                  );
 
-                          if (!mounted) return;
+                                  if (!mounted) return;
 
-                          Navigator.of(parentContext).pop();
-                        } catch (e) {
-                          if (mounted) {
-                            AppLoading.dismissDialog(parentContext);
-                            AppDialogs.showError(
-                              parentContext,
-                              message:
-                                  e.toString().replaceAll('Exception: ', ''),
-                            );
-                          }
-                        }
-                      },
-                    ),
+                                  Navigator.of(parentContext).pop();
+                                } catch (e) {
+                                  if (mounted) {
+                                    AppLoading.dismissDialog(parentContext);
+                                    AppDialogs.showError(
+                                      parentContext,
+                                      message: e
+                                          .toString()
+                                          .replaceAll('Exception: ', ''),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+                ),
+              );
+            }));
   }
 
   Future<void> _showCreateTeamDialog() async {
@@ -892,12 +944,18 @@ class _TournamentDetailPageState extends ConsumerState<TournamentDetailPage> {
                         children: [
                           _TeamSelectionDropdown(
                             selectedTeamId: _selectedTeamId,
+                            selectedPlayerCount: _selectedPlayerIds.length,
                             onTeamSelected: (teamId) {
                               setState(() {
                                 _selectedTeamId = teamId;
+                                _selectedPlayerIds = [];
                               });
                             },
                             onCreateTeam: _showCreateTeamDialog,
+                            onSelectPlayers: _selectedTeamId != null
+                                ? () => _showSelectPlayersBottomSheet(
+                                    _selectedTeamId!)
+                                : null,
                           ),
                           SizedBox(height: AppResponsive.s(context, 12)),
                           AppButton(
@@ -1775,11 +1833,15 @@ class _TeamSelectionDropdown extends ConsumerWidget {
     required this.selectedTeamId,
     required this.onTeamSelected,
     required this.onCreateTeam,
+    this.onSelectPlayers,
+    this.selectedPlayerCount = 0,
   });
 
   final int? selectedTeamId;
   final ValueChanged<int?> onTeamSelected;
   final VoidCallback onCreateTeam;
+  final VoidCallback? onSelectPlayers;
+  final int selectedPlayerCount;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1845,15 +1907,70 @@ class _TeamSelectionDropdown extends ConsumerWidget {
               )
             : null;
 
-        return AppDropdown(
-          label: 'Select Team',
-          hint: 'Select a Team',
-          items: activeTeams,
-          value: selectedTeam,
-          onChanged: (team) => onTeamSelected(team?.id),
-          itemLabel: (team) => team.name,
-          prefixIcon: Icons.groups_outlined,
-          enabled: true,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppDropdown(
+              label: 'Select Team',
+              hint: 'Select a Team',
+              items: activeTeams,
+              value: selectedTeam,
+              onChanged: (team) => onTeamSelected(team?.id),
+              itemLabel: (team) => team.name,
+              prefixIcon: Icons.groups_outlined,
+              enabled: true,
+            ),
+            if (selectedTeamId != null) ...[
+              SizedBox(height: AppResponsive.s(context, 10)),
+              GestureDetector(
+                onTap: onSelectPlayers,
+                child: Container(
+                  width: double.infinity,
+                  padding: AppResponsive.padding(
+                    context,
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentBlue.withValues(alpha: 0.08),
+                    borderRadius: AppResponsive.borderRadius(context, 14),
+                    border: Border.all(
+                      color: AppColors.accentBlue.withValues(alpha: 0.35),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.people_alt_outlined,
+                        color: AppColors.accentBlue,
+                        size: AppResponsive.icon(context, 20),
+                      ),
+                      SizedBox(width: AppResponsive.s(context, 10)),
+                      Expanded(
+                        child: Text(
+                          selectedPlayerCount > 0
+                              ? '$selectedPlayerCount player${selectedPlayerCount > 1 ? 's' : ''} selected'
+                              : 'Select Players',
+                          style: TextStyle(
+                            fontFamily: 'SFProRounded',
+                            fontSize: AppResponsive.font(context, 14),
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.accentBlue,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: AppColors.accentBlue,
+                        size: AppResponsive.icon(context, 18),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
         );
       },
       loading: () => Container(
@@ -1931,6 +2048,295 @@ class _TeamSelectionDropdown extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for selecting players from a team
+class _SelectPlayersBottomSheet extends ConsumerStatefulWidget {
+  const _SelectPlayersBottomSheet({
+    required this.teamId,
+    required this.initialSelectedIds,
+    required this.onSubmit,
+  });
+
+  final int teamId;
+  final List<int> initialSelectedIds;
+  final ValueChanged<List<int>> onSubmit;
+
+  @override
+  ConsumerState<_SelectPlayersBottomSheet> createState() =>
+      _SelectPlayersBottomSheetState();
+}
+
+class _SelectPlayersBottomSheetState
+    extends ConsumerState<_SelectPlayersBottomSheet> {
+  late List<int> _selectedIds;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIds = List.from(widget.initialSelectedIds);
+  }
+
+  void _togglePlayer(TeamPlayerModel player) {
+    setState(() {
+      if (_selectedIds.contains(player.playerUserId)) {
+        _selectedIds.remove(player.playerUserId);
+      } else {
+        _selectedIds.add(player.playerUserId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final playersAsync = ref.watch(teamPlayersListProvider(widget.teamId));
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppResponsive.radius(context, 28)),
+        ),
+      ),
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Padding(
+            padding: EdgeInsets.only(top: AppResponsive.s(context, 12)),
+            child: Center(
+              child: Container(
+                width: AppResponsive.s(context, 40),
+                height: AppResponsive.s(context, 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(
+                    AppResponsive.radius(context, 2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Title row
+          Padding(
+            padding: AppResponsive.padding(
+              context,
+              horizontal: 20,
+              top: 16,
+              bottom: 8,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  'Select Players',
+                  style: TextStyle(
+                    fontFamily: 'SFProRounded',
+                    fontSize: AppResponsive.font(context, 18),
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+                const Spacer(),
+                if (_selectedIds.isNotEmpty)
+                  Text(
+                    '${_selectedIds.length} selected',
+                    style: TextStyle(
+                      fontFamily: 'SFProRounded',
+                      fontSize: AppResponsive.font(context, 13),
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.accentBlue,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
+          Divider(color: Colors.grey.shade200, height: 1),
+
+          // Players list
+          playersAsync.when(
+            loading: () => Padding(
+              padding: EdgeInsets.all(AppResponsive.p(context, 40)),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppColors.accentBlue),
+              ),
+            ),
+            error: (err, _) => Padding(
+              padding: AppResponsive.padding(context, all: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline,
+                      color: Colors.red.shade400,
+                      size: AppResponsive.icon(context, 40)),
+                  SizedBox(height: AppResponsive.s(context, 8)),
+                  Text(
+                    'Failed to load players',
+                    style: TextStyle(
+                      fontSize: AppResponsive.font(context, 14),
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            data: (players) {
+              final activePlayers =
+                  players.where((p) => !p.deleted && p.status).toList();
+
+              if (activePlayers.isEmpty) {
+                return Padding(
+                  padding: AppResponsive.padding(context, all: 32),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: AppResponsive.icon(context, 48),
+                        color: Colors.grey.shade400,
+                      ),
+                      SizedBox(height: AppResponsive.s(context, 12)),
+                      Text(
+                        'No players in this team yet',
+                        style: TextStyle(
+                          fontFamily: 'SFProRounded',
+                          fontSize: AppResponsive.font(context, 15),
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.45,
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    vertical: AppResponsive.s(context, 4),
+                  ),
+                  itemCount: activePlayers.length,
+                  separatorBuilder: (_, __) => Divider(
+                    color: Colors.grey.shade100,
+                    height: 1,
+                    indent: AppResponsive.s(context, 72),
+                  ),
+                  itemBuilder: (context, index) {
+                    final player = activePlayers[index];
+                    final isSelected =
+                        _selectedIds.contains(player.playerUserId);
+
+                    return InkWell(
+                      onTap: () => _togglePlayer(player),
+                      child: Padding(
+                        padding: AppResponsive.padding(
+                          context,
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            // Avatar
+                            CircleAvatar(
+                              radius: AppResponsive.s(context, 22),
+                              backgroundColor:
+                                  AppColors.accentBlue.withValues(alpha: 0.1),
+                              child: Text(
+                                player.playerName.isNotEmpty
+                                    ? player.playerName[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  fontFamily: 'SFProRounded',
+                                  fontSize: AppResponsive.font(context, 16),
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.accentBlue,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: AppResponsive.s(context, 14)),
+                            // Player info
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    player.playerName.isNotEmpty
+                                        ? player.playerName
+                                        : 'Unknown Player',
+                                    style: TextStyle(
+                                      fontFamily: 'SFProRounded',
+                                      fontSize: AppResponsive.font(context, 15),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  if (player.sportRole?.isNotEmpty == true) ...[
+                                    SizedBox(
+                                        height: AppResponsive.s(context, 2)),
+                                    Text(
+                                      player.sportRole!,
+                                      style: TextStyle(
+                                        fontFamily: 'SFProRounded',
+                                        fontSize:
+                                            AppResponsive.font(context, 13),
+                                        fontWeight: FontWeight.w400,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            // Checkbox
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: (_) => _togglePlayer(player),
+                              activeColor: AppColors.accentBlue,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppResponsive.radius(context, 4),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+
+          Divider(color: Colors.grey.shade200, height: 1),
+
+          // Submit button
+          Padding(
+            padding: AppResponsive.padding(
+              context,
+              horizontal: 20,
+              top: 12,
+              bottom: 24,
+            ),
+            child: AppButton(
+              text: _selectedIds.isEmpty
+                  ? 'Continue without players'
+                  : 'Confirm ${_selectedIds.length} Player${_selectedIds.length > 1 ? 's' : ''}',
+              onPressed: () => widget.onSubmit(_selectedIds),
+            ),
+          ),
+        ],
       ),
     );
   }

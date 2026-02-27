@@ -325,12 +325,12 @@ class OnboardingRemoteDataSource {
     }
   }
 
-  /// Get city list by state (New method: using stateId instead of districtId)
-  Future<List<CityModel>> getCityList(int stateId) async {
+  /// Get city list by districtId
+  Future<List<CityModel>> getCityList(int districtId) async {
     try {
       final response = await _apiClient.post(
         ApiEndpoints.getCityList,
-        data: {'stateId': stateId},
+        data: {'districtId': districtId},
       );
 
       _validateResponse(response, 'Failed to load cities');
@@ -343,8 +343,8 @@ class OnboardingRemoteDataSource {
 
         // Cache cities for offline access
         final cacheData = obj.cast<Map<String, dynamic>>();
-        await _cache.saveCities(stateId, cacheData);
-        print('💾 [OnboardingDS] Cities cached for stateId=$stateId');
+        await _cache.saveCities(districtId, cacheData);
+        print('💾 [OnboardingDS] Cities cached for districtId=$districtId');
 
         return cities;
       }
@@ -353,7 +353,7 @@ class OnboardingRemoteDataSource {
       // Try cache on network error
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
-        final cachedData = _cache.getCities(stateId);
+        final cachedData = _cache.getCities(districtId);
         if (cachedData != null) {
           print('✅ [OnboardingDS] Returning cached cities (offline)');
           return cachedData.map((e) => CityModel.fromJson(e)).toList();
@@ -361,7 +361,7 @@ class OnboardingRemoteDataSource {
       }
       throw Exception(_handleError(e));
     } catch (e) {
-      final cachedData = _cache.getCities(stateId);
+      final cachedData = _cache.getCities(districtId);
       if (cachedData != null) {
         return cachedData.map((e) => CityModel.fromJson(e)).toList();
       }

@@ -106,4 +106,14 @@ class ApiEndpoints {
   // Tournament Round Group Teams
   static const String getTournamentRoundGroupTeamsList =
       '/api/TournamentRoundGroupTeams/getTournamentRoundGroupTeamsList';
+
+  // Player Auction Bids
+  static const String getPlayerAuctionBidsList =
+      '/api/PlayerAuctionBids/getPlayerAuctionBidsList';
+
+  static const String savePlayerAuctionBids =
+      '/api/PlayerAuctionBids/savePlayerAuctionBids';
+
+  static const String getCurrentAuctionTimeline =
+      '/api/PlayerAuction/getCurrentAuctionTimeline';
 }

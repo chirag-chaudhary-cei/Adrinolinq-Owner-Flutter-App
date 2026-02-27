@@ -284,13 +284,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           } else {
             print('ℹ️ [Cascade] No preloaded districtId, chain ends here');
           }
-
-          // Also load cities based on state ID
-          final cityIdToLoad = _preloadedCityId;
-          if (cityIdToLoad != null) {
-            print('🔄 [Cascade] Loading cities for stateId=${match.id}');
-            await _loadCitiesWithChain(match.id);
-          }
         } catch (e) {
           print('⚠️ [Cascade] State not found for ID=$_preloadedStateId');
           _preloadedStateId = null;
@@ -350,10 +343,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           // Clear preloaded ID after matching
           _preloadedDistrictId = null;
 
-          // Don't chain to cities from districts - cities are loaded by state
-          print(
-            'ℹ️ [Cascade] Districts loaded, cities should be loaded by state',
-          );
+          // Chain to cities using districtId
+          if (_preloadedCityId != null) {
+            print(
+              '🔄 [Cascade] Continuing chain: Loading cities for districtId=${match.id}',
+            );
+            await _loadCitiesWithChain(match.id);
+          }
         } catch (e) {
           print('⚠️ [Cascade] District not found for ID=$_preloadedDistrictId');
           _preloadedDistrictId = null;
@@ -369,10 +365,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  /// Load cities with automatic chaining to regions
-  Future<void> _loadCitiesWithChain(int stateId) async {
+  /// Load cities with automatic chaining
+  Future<void> _loadCitiesWithChain(int districtId) async {
     print(
-      '🔄 [Cascade] Loading cities for stateId=$stateId (preloadedCityId=$_preloadedCityId)',
+      '🔄 [Cascade] Loading cities for districtId=$districtId (preloadedCityId=$_preloadedCityId)',
     );
 
     setState(() {
@@ -382,7 +378,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     try {
       final repository = ref.read(onboardingRepositoryProvider);
-      final cities = await repository.getCities(stateId);
+      final cities = await repository.getCities(districtId);
 
       if (!mounted) return;
 
@@ -526,8 +522,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
-  // Load cities by state
-  Future<void> _loadCities(int stateId) async {
+  // Load cities by districtId
+  Future<void> _loadCities(int districtId) async {
     setState(() {
       _isLoadingCities = true;
       _cities = [];
@@ -538,7 +534,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     try {
       final repository = ref.read(onboardingRepositoryProvider);
-      final cities = await repository.getCities(stateId);
+      final cities = await repository.getCities(districtId);
 
       if (mounted) {
         setState(() {
@@ -1121,12 +1117,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   Future<bool> _handleBackNavigation() async {
-    if (_currentPhase > 0) {
-      setState(() => _currentPhase--);
-      return false;
-    }
-
-    // In edit mode, show confirmation before going back
+    // In edit mode, always show confirmation regardless of phase
     if (widget.isEditMode) {
       final confirmed = await AppDialogs.showConfirmation(
         context,
@@ -1137,6 +1128,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         cancelText: 'Cancel',
       );
       return confirmed == true;
+    }
+
+    if (_currentPhase > 0) {
+      setState(() => _currentPhase--);
+      return false;
     }
 
     // In onboarding mode, show confirmation and clear data
@@ -2113,8 +2109,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             });
             if (state != null) {
               _loadDistricts(state.id);
-              // New method: Load cities directly using stateId
-              _loadCities(state.id);
             }
           },
           itemLabel: (state) => state.name,
@@ -2130,43 +2124,29 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           onChanged: (district) {
             setState(() {
               _selectedDistrict = district;
-              // Note: Cities are now loaded by stateId, not districtId
-              // Commenting out city clearing and loading by district
-              // _selectedCity = null;
-              // _cities = [];
+              _selectedCity = null;
+              _cities = [];
             });
-            // Old method (commented): Loading cities by districtId
-            // if (district != null) {
-            //   _loadCities(district.id);
-            // }
+            if (district != null) {
+              _loadCities(district.id);
+            }
           },
           itemLabel: (district) => district.name,
         ),
         SizedBox(height: AppResponsive.s(context, 16)),
-        // City (Now loaded by stateId instead of districtId)
+        // City loaded by districtId
         AppDropdown<CityModel>(
           label: 'City',
           value: _selectedCity,
           items: _cities,
           isLoading: _isLoadingCities,
-          enabled: _selectedState != null && !_isLoadingCities,
+          enabled: _selectedDistrict != null && !_isLoadingCities,
           onChanged: (city) {
             setState(() {
               _selectedCity = city;
             });
           },
           itemLabel: (city) => city.name,
-        ),
-        SizedBox(height: AppResponsive.s(context, 16)),
-        // Region (Converted to Text Field)
-        AppTextFieldWithLabel(
-          controller: _regionController,
-          label: 'Region',
-          hintText: 'Enter your region',
-          keyboardType: TextInputType.text,
-          validator: (value) {
-            return null;
-          },
         ),
         SizedBox(height: AppResponsive.s(context, 16)),
         // Street Address
@@ -2176,6 +2156,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           hintText: 'Street Address',
           keyboardType: TextInputType.streetAddress,
           textInputAction: TextInputAction.next,
+        ),
+        SizedBox(height: AppResponsive.s(context, 16)),
+        // Region
+        AppTextFieldWithLabel(
+          controller: _regionController,
+          label: 'Region',
+          hintText: 'Enter your region',
+          keyboardType: TextInputType.text,
+          validator: (value) {
+            return null;
+          },
         ),
         SizedBox(height: AppResponsive.s(context, 16)),
         // Pincode

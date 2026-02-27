@@ -111,18 +111,16 @@ class PlayerProfileCard extends ConsumerWidget {
                                 padding: AppResponsive.paddingSymmetric(context,
                                     horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.18),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: Colors.white.withOpacity(0.4)),
                                 ),
                                 child: Text(
                                   gender,
                                   style: TextStyle(
                                     fontFamily: 'SFProRounded',
                                     fontSize: AppResponsive.font(context, 11),
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF1A1A1A),
                                   ),
                                 ),
                               ),

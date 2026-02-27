@@ -102,3 +102,30 @@ final myTeamProvider =
 
   return repository.getMyTeam(tournamentId);
 });
+
+/// Player auction bids provider - fetches bid history for a specific team
+final playerAuctionBidsProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, int>((ref, tournamentId) async {
+  final repository = ref.watch(myTournamentRepositoryProvider);
+  return repository.getCurrentAuctionTimeline(tournamentId);
+});
+
+/// Save player auction bid provider
+final savePlayerAuctionBidProvider = FutureProvider.family<
+    Map<String, dynamic>,
+    ({
+      int playerAuctionId,
+      int points,
+      int tournamentTeamId
+    })>((ref, params) async {
+  final repository = ref.watch(myTournamentRepositoryProvider);
+  return repository.savePlayerAuctionBid(
+      params.playerAuctionId, params.points, params.tournamentTeamId);
+});
+
+/// Get user details provider
+final userDetailsProvider =
+    FutureProvider.family<Map<String, dynamic>, int>((ref, userId) async {
+  final repository = ref.watch(myTournamentRepositoryProvider);
+  return repository.getUserDetails(userId);
+});

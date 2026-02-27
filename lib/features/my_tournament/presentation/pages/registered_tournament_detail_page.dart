@@ -576,7 +576,7 @@ class _RegisteredTournamentDetailPageState
                 padding: AppResponsive.padding(context,
                     horizontal: 20, vertical: 12, bottom: 16),
                 // decoration: BoxDecoration(
-                  color: Colors.transparent,
+                color: Colors.transparent,
                 // ),
                 child: Row(
                   children: [
@@ -753,7 +753,7 @@ class _MyTeamTab extends ConsumerWidget {
   });
 
   final TournamentRegistrationModel registration;
-    final int tournamentId;
+  final int tournamentId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -935,8 +935,8 @@ class _MyTeamTab extends ConsumerWidget {
                 ),
               ),
             ],
-            // Player management links
-            ...[
+            // Player management links — show only if players are allocated
+            if (playerAllocation == 2) ...[
               Divider(
                 height: 1,
                 thickness: 1,
@@ -966,6 +966,12 @@ class _MyTeamTab extends ConsumerWidget {
                 label: 'Participated Player',
                 onTap: () => Navigator.of(context).pushNamed(
                   AppRouter.playerBid,
+                  arguments: {
+                    'tournamentTeamId': team.id,
+                    'eventTitle': '',
+                    'eventSport': eventSport,
+                    'tournamentId': tournamentId,
+                  },
                 ),
               ),
             ],

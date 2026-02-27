@@ -81,9 +81,9 @@ class OnboardingRepository {
     return _remoteDataSource.getDistrictList(stateId);
   }
 
-  /// Get cities by state (New method: using stateId instead of districtId)
-  Future<List<CityModel>> getCities(int stateId) async {
-    return _remoteDataSource.getCityList(stateId);
+  /// Get cities by districtId
+  Future<List<CityModel>> getCities(int districtId) async {
+    return _remoteDataSource.getCityList(districtId);
   }
 
   /// Get regions by city

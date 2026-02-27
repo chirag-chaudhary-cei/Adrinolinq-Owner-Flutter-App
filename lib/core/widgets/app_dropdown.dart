@@ -201,7 +201,9 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
           CompositedTransformFollower(
             link: _layerLink,
             showWhenUnlinked: false,
-            offset: Offset.zero,
+            // Overlap header by 1.5 px to hide the border seam (same trick as FacilityDropdown)
+            offset:
+                _displayBelow ? const Offset(0, -1.5) : const Offset(0, 1.5),
             targetAnchor:
                 _displayBelow ? Alignment.bottomLeft : Alignment.topLeft,
             followerAnchor:
@@ -284,18 +286,19 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
     final needsScrolling = totalContentHeight > height;
     const borderColor = Color(0xFF000000);
     final borderWidth = AppResponsive.thickness(context, 2);
-    // Dropdown list always uses radius 10
-    final listRadius = AppResponsive.radius(context, 10);
+    // Dropdown list radius matches the header radius (uses widget.borderRadius if set, else 10)
+    final listRadius = AppResponsive.radius(context, widget.borderRadius ?? 10);
+    final listBorderRadius = BorderRadius.only(
+      bottomLeft: Radius.circular(_displayBelow ? listRadius : 0),
+      bottomRight: Radius.circular(_displayBelow ? listRadius : 0),
+      topLeft: Radius.circular(!_displayBelow ? listRadius : 0),
+      topRight: Radius.circular(!_displayBelow ? listRadius : 0),
+    );
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(_displayBelow ? listRadius : 0),
-          bottomRight: Radius.circular(_displayBelow ? listRadius : 0),
-          topLeft: Radius.circular(!_displayBelow ? listRadius : 0),
-          topRight: Radius.circular(!_displayBelow ? listRadius : 0),
-        ),
+        borderRadius: listBorderRadius,
         border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: [
           BoxShadow(
@@ -306,51 +309,54 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
         ],
       ),
       height: height,
-      child: Material(
-        color: Colors.transparent,
-        child: Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: needsScrolling,
-          child: ListView.separated(
+      child: ClipRRect(
+        borderRadius: listBorderRadius,
+        child: Material(
+          color: Colors.transparent,
+          child: Scrollbar(
             controller: _scrollController,
-            primary: false,
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemCount: widget.items.length,
-            separatorBuilder: (_, __) => Divider(
-              color: Colors.grey.shade200,
-              thickness: 1,
-              height: 1,
-            ),
-            itemBuilder: (context, i) {
-              final item = widget.items[i];
-              final isSelected = item == widget.value;
+            thumbVisibility: needsScrolling,
+            child: ListView.separated(
+              controller: _scrollController,
+              primary: false,
+              shrinkWrap: true,
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: widget.items.length,
+              separatorBuilder: (_, __) => Divider(
+                color: Colors.grey.shade200,
+                thickness: 1,
+                height: 1,
+              ),
+              itemBuilder: (context, i) {
+                final item = widget.items[i];
+                final isSelected = item == widget.value;
 
-              return InkWell(
-                onTap: () => _selectItem(item),
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppResponsive.s(context, 12),
-                    vertical: AppResponsive.s(context, 12),
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accentBlue.withOpacity(0.1)
-                        : Colors.transparent,
-                  ),
-                  child: Text(
-                    widget.itemLabel(item),
-                    style: TextStyle(
-                      fontSize: AppResponsive.font(context, 16),
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                      decoration: TextDecoration.none,
+                return InkWell(
+                  onTap: () => _selectItem(item),
+                  child: Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppResponsive.s(context, 12),
+                      vertical: AppResponsive.s(context, 12),
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.accentBlue.withOpacity(0.1)
+                          : Colors.transparent,
+                    ),
+                    child: Text(
+                      widget.itemLabel(item),
+                      style: TextStyle(
+                        fontSize: AppResponsive.font(context, 16),
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -359,10 +365,9 @@ class _AppDropdownFieldState<T> extends State<AppDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
-    // When closed: use custom radius, when open: use radius 10
-    final radiusValue = _isOpen
-        ? AppResponsive.radius(context, 10)
-        : AppResponsive.radius(context, widget.borderRadius ?? 10);
+    // Use the explicitly passed borderRadius, else default 10
+    final radiusValue =
+        AppResponsive.radius(context, widget.borderRadius ?? 10);
     final borderRadius = BorderRadius.circular(radiusValue);
     final borderColor = _errorText != null
         ? AppColors.error

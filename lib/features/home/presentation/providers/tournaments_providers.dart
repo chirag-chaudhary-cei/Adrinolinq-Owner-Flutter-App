@@ -36,23 +36,9 @@ class TournamentsNotifier extends AsyncNotifier<List<TournamentModel>> {
 
     final repository = ref.read(tournamentsRepositoryProvider);
 
-    final cached = repository.getCachedTournamentsList();
-
-    if (cached != null && cached.isNotEmpty) {
-      if (kDebugMode) {
-        print(
-            '⚡ [TournamentsNotifier] Showing cached tournaments list immediately');
-      }
-
-      SmartCacheDebug.logFetching();
-      Future.microtask(() => _fetchAndCompare(cached, showIndicator: false));
-
-      return cached;
-    }
-
     if (kDebugMode) {
       print(
-          '🌐 [TournamentsNotifier] No cache, fetching tournaments list from API...');
+          '🌐 [TournamentsNotifier] Fetching fresh tournaments list from API...');
     }
     return await repository.getTournamentsList();
   }
@@ -133,17 +119,6 @@ final offlineFirstTournamentsProvider = tournamentsNotifierProvider;
 final tournamentsListProvider =
     FutureProvider.autoDispose<List<TournamentModel>>((ref) async {
   final repository = ref.watch(tournamentsRepositoryProvider);
-
-  final cached = repository.getCachedTournamentsList();
-  if (cached != null && cached.isNotEmpty) {
-    Future.microtask(() async {
-      try {
-        await repository.getTournamentsList();
-      } catch (_) {}
-    });
-    return cached;
-  }
-
   return repository.getTournamentsList();
 });
 

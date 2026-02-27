@@ -45,6 +45,22 @@ class MyTournamentRepository {
     return remoteDataSource.getEnrolledPlayers(tournamentId);
   }
 
+  Future<List<Map<String, dynamic>>> getCurrentAuctionTimeline(
+    int tournamentId,
+  ) async {
+    return remoteDataSource.getCurrentAuctionTimeline(tournamentId);
+  }
+
+  Future<Map<String, dynamic>> savePlayerAuctionBid(
+      int playerAuctionId, int points, int tournamentTeamId) async {
+    return remoteDataSource.savePlayerAuctionBid(
+        playerAuctionId, points, tournamentTeamId);
+  }
+
+  Future<Map<String, dynamic>> getUserDetails(int userId) async {
+    return remoteDataSource.getUserDetails(userId);
+  }
+
   MyTeamModel? getCachedMyTeam(int tournamentId) {
     return remoteDataSource.getCachedMyTeam(tournamentId);
   }

@@ -9,6 +9,7 @@ class LoggerInterceptor extends Interceptor {
       print('┌─────────────────────────────────────────────────────────────');
       print('│ 🌐 API: ${options.method} ${options.baseUrl}${options.path}');
       print('├─────────────────────────────────────────────────────────────');
+
       if (options.headers.isNotEmpty) {
         print('│ 📋 Headers:');
         options.headers.forEach((key, value) {
@@ -16,11 +17,22 @@ class LoggerInterceptor extends Interceptor {
         });
         print('├─────────────────────────────────────────────────────────────');
       }
+
+      if (options.queryParameters.isNotEmpty) {
+        print('│ 🔍 Query Parameters:');
+        options.queryParameters.forEach((key, value) {
+          print('│   $key: $value');
+        });
+        print('├─────────────────────────────────────────────────────────────');
+      }
+
       if (options.data != null) {
         print('│ 📤 Payload:');
         try {
-          final prettyJson = const JsonEncoder.withIndent('  ').convert(options.data);
-          prettyJson.split('\n').forEach((line) => print('│   $line'));
+          final prettyJson = JsonEncoder.withIndent('  ').convert(options.data);
+          prettyJson.split('\n').forEach((line) {
+            print('│   $line');
+          });
         } catch (e) {
           print('│   ${options.data}');
         }
@@ -33,20 +45,28 @@ class LoggerInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     if (kDebugMode) {
+      // Check if response logging is disabled for this request
       final printResponse =
           response.requestOptions.extra['printResponse'] ?? true;
+
       print('│ ✅ Response: ${response.statusCode}');
       print('├─────────────────────────────────────────────────────────────');
+
       if (printResponse && response.data != null) {
         print('│ 📥 Data:');
         try {
           final prettyJson =
-              const JsonEncoder.withIndent('  ').convert(response.data);
-          prettyJson.split('\n').forEach((line) => print('│   $line'));
+              JsonEncoder.withIndent('  ').convert(response.data);
+          prettyJson.split('\n').forEach((line) {
+            print('│   $line');
+          });
         } catch (e) {
           print('│   ${response.data}');
         }
+      } else if (!printResponse) {
+        print('│ 📥 Data: [Response logging disabled]');
       }
+
       print('└─────────────────────────────────────────────────────────────');
     }
     super.onResponse(response, handler);
@@ -56,20 +76,27 @@ class LoggerInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (kDebugMode) {
       print('│ ❌ Error: ${err.type}');
+      print('├─────────────────────────────────────────────────────────────');
       print('│ 💬 Message: ${err.message}');
+
       if (err.response != null) {
         print('│ 📊 Status Code: ${err.response?.statusCode}');
+        print('├─────────────────────────────────────────────────────────────');
+
         if (err.response?.data != null) {
           print('│ 📥 Error Data:');
           try {
             final prettyJson =
-                const JsonEncoder.withIndent('  ').convert(err.response!.data);
-            prettyJson.split('\n').forEach((line) => print('│   $line'));
+                JsonEncoder.withIndent('  ').convert(err.response!.data);
+            prettyJson.split('\n').forEach((line) {
+              print('│   $line');
+            });
           } catch (e) {
             print('│   ${err.response?.data}');
           }
         }
       }
+
       print('└─────────────────────────────────────────────────────────────');
     }
     super.onError(err, handler);

@@ -161,13 +161,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       children: [
         AppTextFieldWithLabel(
           controller: _emailOrMobileController,
-          label: 'Email/Mobile No.',
-          hintText: 'Email/Mobile No.',
-          keyboardType: TextInputType.emailAddress,
+          label: 'Mobile No.',
+          hintText: 'Mobile No.',
+          keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
           isRequired: true,
           autofillHints: const [
-            AutofillHints.email,
+            // AutofillHints.email,
             AutofillHints.telephoneNumber,
           ],
           inputFormatters: [
